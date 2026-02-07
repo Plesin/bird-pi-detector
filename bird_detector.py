@@ -76,7 +76,36 @@ class BirdDetector:
         
         self.last_detection_time = time.time()
         self.audio_frames = []
+
+    def get_day_dir(self, timestamp):
+        """Create and return daily output directory"""
+        day_key = timestamp.split('_')[0]
+        day_dir = os.path.join(OUTPUT_DIR, day_key)
+        os.makedirs(day_dir, exist_ok=True)
+        return day_dir
         
+    def is_bird_like(self, contour):
+        """Filter contours by shape to reduce false positives"""
+        area = cv2.contourArea(contour)
+        if area < MOTION_THRESHOLD:
+            return False
+        
+        # Get bounding box
+        x, y, w, h = cv2.boundingRect(contour)
+        
+        # Avoid division by zero
+        if h == 0:
+            return False
+        
+        aspect_ratio = float(w) / h
+        
+        # Bird-like shapes are roughly 0.4 to 2.5 ratio
+        # (not ultra-thin shadows or ultra-wide clouds)
+        if 0.4 < aspect_ratio < 2.5:
+            return True
+        
+        return False
+    
     def detect_motion(self, frame):
         """Detect motion in frame using background subtraction"""
         fg_mask = self.bg_subtractor.apply(frame)
@@ -88,9 +117,9 @@ class BirdDetector:
             cv2.CHAIN_APPROX_SIMPLE
         )
         
-        # Check if any contour is large enough
+        # Check if any contour is bird-like and large enough
         for contour in contours:
-            if cv2.contourArea(contour) > MOTION_THRESHOLD:
+            if self.is_bird_like(contour):
                 return True
         
         return False
@@ -98,13 +127,14 @@ class BirdDetector:
     def capture_photos(self):
         """Capture multiple photos"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        day_dir = self.get_day_dir(timestamp)
         print(f"\n🐦 Bird detected! Taking {PHOTOS_PER_DETECTION} photos...")
         
         for i in range(PHOTOS_PER_DETECTION):
             ret, frame = self.cap.read()
             if ret:
                 filename = os.path.join(
-                    OUTPUT_DIR, 
+                    day_dir,
                     f"bird_{timestamp}_{i+1}.jpg"
                 )
                 cv2.imwrite(filename, frame)
@@ -122,8 +152,9 @@ class BirdDetector:
         global RECORD_AUDIO
         """Record video with audio"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        video_filename = os.path.join(OUTPUT_DIR, f"bird_{timestamp}.avi")
-        audio_filename = os.path.join(OUTPUT_DIR, f"bird_{timestamp}.wav")
+        day_dir = self.get_day_dir(timestamp)
+        video_filename = os.path.join(day_dir, f"bird_{timestamp}.avi")
+        audio_filename = os.path.join(day_dir, f"bird_{timestamp}.wav")
         
         print(f"\n🐦 Bird detected! Recording {VIDEO_DURATION_SECONDS}s video...")
         
@@ -218,8 +249,21 @@ class BirdDetector:
                     if frame_count % 30 == 0:  # Print every 30 frames
                         fg_mask = self.bg_subtractor.apply(frame)
                         contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                        max_area = max([cv2.contourArea(c) for c in contours]) if contours else 0
-                        print(f"Frame {frame_count}: Motion={motion_detected}, Max area={int(max_area)}, Threshold={MOTION_THRESHOLD}")
+                        
+                        # Show stats on largest contours
+                        stats = []
+                        for c in contours:
+                            area = cv2.contourArea(c)
+                            if area > MOTION_THRESHOLD / 2:  # Only show significant contours
+                                x, y, w, h = cv2.boundingRect(c)
+                                aspect = float(w) / h if h > 0 else 0
+                                bird_like = self.is_bird_like(c)
+                                stats.append(f"area={int(area)}, aspect={aspect:.2f}, bird-like={bird_like}")
+                        
+                        print(f"Frame {frame_count}: Motion={motion_detected}, Threshold={MOTION_THRESHOLD}")
+                        if stats:
+                            for stat in stats:
+                                print(f"  └─ {stat}")
                     
                     # Check cooldown period
                     current_time = time.time()
