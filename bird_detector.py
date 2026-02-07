@@ -1,0 +1,248 @@
+#!/usr/bin/env python3
+"""
+Bird Detection Camera System
+Detects motion and captures photos or videos with audio
+"""
+
+import cv2
+import numpy as np
+import time
+import os
+from datetime import datetime
+from threading import Thread
+import pyaudio
+import wave
+
+# ==================== CONFIGURATION ====================
+
+# Mode: "photo" or "video"
+CAPTURE_MODE = "photo"
+
+# Photo mode settings
+PHOTOS_PER_DETECTION = 3
+PHOTO_DELAY_SECONDS = 2
+
+# Video mode settings
+VIDEO_DURATION_SECONDS = 10
+RECORD_AUDIO = True
+
+# Detection settings
+MOTION_THRESHOLD = 10000  # Lower = more sensitive (try 3000-10000)
+COOLDOWN_SECONDS = 30    # Time to wait before next detection
+
+# Camera settings
+CAMERA_WIDTH = 1920
+CAMERA_HEIGHT = 1080
+CAMERA_FPS = 30
+
+# Storage settings
+OUTPUT_DIR = "media"
+
+# Audio settings (if recording video with audio)
+AUDIO_RATE = 44100
+AUDIO_CHANNELS = 1
+AUDIO_CHUNK = 1024
+
+# ======================================================
+
+class BirdDetector:
+    def __init__(self):
+        # Create output directory
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        
+        # Initialize camera
+        print("Initializing camera...")
+        self.cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L2)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
+        self.cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
+        
+        if not self.cap.isOpened():
+            raise Exception("Could not open camera!")
+        
+        # Test capture
+        ret, frame = self.cap.read()
+        if not ret:
+            raise Exception("Could not read from camera!")
+        
+        print(f"Camera initialized: {frame.shape[1]}x{frame.shape[0]}")
+        
+        # Initialize background subtractor for motion detection
+        self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
+            history=500, 
+            varThreshold=16, 
+            detectShadows=False
+        )
+        
+        self.last_detection_time = time.time()
+        self.audio_frames = []
+        
+    def detect_motion(self, frame):
+        """Detect motion in frame using background subtraction"""
+        fg_mask = self.bg_subtractor.apply(frame)
+        
+        # Find contours in the mask
+        contours, _ = cv2.findContours(
+            fg_mask, 
+            cv2.RETR_EXTERNAL, 
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+        
+        # Check if any contour is large enough
+        for contour in contours:
+            if cv2.contourArea(contour) > MOTION_THRESHOLD:
+                return True
+        
+        return False
+    
+    def capture_photos(self):
+        """Capture multiple photos"""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        print(f"\n🐦 Bird detected! Taking {PHOTOS_PER_DETECTION} photos...")
+        
+        for i in range(PHOTOS_PER_DETECTION):
+            ret, frame = self.cap.read()
+            if ret:
+                filename = os.path.join(
+                    OUTPUT_DIR, 
+                    f"bird_{timestamp}_{i+1}.jpg"
+                )
+                cv2.imwrite(filename, frame)
+                print(f"  📸 Saved: {filename}")
+                time.sleep(PHOTO_DELAY_SECONDS)
+            else:
+                print(f"  ❌ Failed to capture photo {i+1}")
+    
+    def audio_callback(self, in_data, frame_count, time_info, status):
+        """Callback for audio recording"""
+        self.audio_frames.append(in_data)
+        return (in_data, pyaudio.paContinue)
+    
+    def record_video_with_audio(self):
+        global RECORD_AUDIO
+        """Record video with audio"""
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        video_filename = os.path.join(OUTPUT_DIR, f"bird_{timestamp}.avi")
+        audio_filename = os.path.join(OUTPUT_DIR, f"bird_{timestamp}.wav")
+        
+        print(f"\n🐦 Bird detected! Recording {VIDEO_DURATION_SECONDS}s video...")
+        
+        # Setup video writer
+        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        out = cv2.VideoWriter(
+            video_filename, 
+            fourcc, 
+            CAMERA_FPS, 
+            (CAMERA_WIDTH, CAMERA_HEIGHT)
+        )
+        
+        # Setup audio recording if enabled
+        audio_stream = None
+        p = None
+        if RECORD_AUDIO:
+            try:
+                p = pyaudio.PyAudio()
+                self.audio_frames = []
+                audio_stream = p.open(
+                    format=pyaudio.paInt16,
+                    channels=AUDIO_CHANNELS,
+                    rate=AUDIO_RATE,
+                    input=True,
+                    frames_per_buffer=AUDIO_CHUNK,
+                    stream_callback=self.audio_callback
+                )
+                audio_stream.start_stream()
+                print("  🎤 Audio recording started")
+            except Exception as e:
+                print(f"  ⚠️  Audio recording failed: {e}")
+                RECORD_AUDIO = False
+        
+        # Record video
+        start_time = time.time()
+        frame_count = 0
+        
+        while time.time() - start_time < VIDEO_DURATION_SECONDS:
+            ret, frame = self.cap.read()
+            if ret:
+                out.write(frame)
+                frame_count += 1
+            else:
+                print("  ❌ Failed to read frame")
+                break
+        
+        # Stop audio recording
+        if audio_stream:
+            audio_stream.stop_stream()
+            audio_stream.close()
+            
+            # Save audio file
+            wf = wave.open(audio_filename, 'wb')
+            wf.setnchannels(AUDIO_CHANNELS)
+            wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+            wf.setframerate(AUDIO_RATE)
+            wf.writeframes(b''.join(self.audio_frames))
+            wf.close()
+            print(f"  🎤 Saved audio: {audio_filename}")
+        
+        if p:
+            p.terminate()
+        
+        out.release()
+        print(f"  🎥 Saved video: {video_filename} ({frame_count} frames)")
+    
+    def run(self):
+        """Main detection loop"""
+        print("\n" + "="*50)
+        print(f"🐦 Bird Detection System Started")
+        print(f"Mode: {CAPTURE_MODE.upper()}")
+        print(f"Motion threshold: {MOTION_THRESHOLD}")
+        print(f"Output directory: {OUTPUT_DIR}")
+        print(f"Press Ctrl+C to stop")
+        print("="*50 + "\n")
+        
+        try:
+            frame_count = 0
+            while True:
+                ret, frame = self.cap.read()
+                if not ret:
+                    print("Failed to read frame")
+                    break
+                
+                frame_count += 1
+                
+                # Check for motion every few frames
+                if frame_count % 5 == 0:
+                    motion_detected = self.detect_motion(frame)
+
+                    # DEBUG: Show what's being detected
+                    if frame_count % 30 == 0:  # Print every 30 frames
+                        fg_mask = self.bg_subtractor.apply(frame)
+                        contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                        max_area = max([cv2.contourArea(c) for c in contours]) if contours else 0
+                        print(f"Frame {frame_count}: Motion={motion_detected}, Max area={int(max_area)}, Threshold={MOTION_THRESHOLD}")
+                    
+                    # Check cooldown period
+                    current_time = time.time()
+                    if motion_detected and (current_time - self.last_detection_time) > COOLDOWN_SECONDS:
+                        self.last_detection_time = current_time
+                        
+                        if CAPTURE_MODE == "photo":
+                            self.capture_photos()
+                        elif CAPTURE_MODE == "video":
+                            self.record_video_with_audio()
+                        
+                        print(f"\n⏳ Cooldown for {COOLDOWN_SECONDS}s...")
+                
+                # Small delay to reduce CPU usage
+                time.sleep(0.01)
+                
+        except KeyboardInterrupt:
+            print("\n\n🛑 Stopping bird detection system...")
+        finally:
+            self.cap.release()
+            cv2.destroyAllWindows()
+            print("✅ Camera released. Goodbye!")
+
+if __name__ == "__main__":
+    detector = BirdDetector()
+    detector.run()
