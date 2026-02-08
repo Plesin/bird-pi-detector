@@ -3,168 +3,10 @@
   <head>
     <title>Bird Camera Viewer</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background: #f0f0f0;
-      }
-      .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      }
-      h1 {
-        color: #333;
-        border-bottom: 3px solid #4caf50;
-        padding-bottom: 10px;
-      }
-      h2 {
-        color: #555;
-        margin-top: 30px;
-      }
-      h3 {
-        color: #666;
-        margin-top: 20px;
-      }
-      .day-heading a {
-        color: #555;
-        text-decoration: none;
-      }
-      .day-heading a:hover {
-        text-decoration: underline;
-      }
-      .live-feed {
-        width: 100%;
-        max-width: 800px;
-        border: 2px solid #ddd;
-        border-radius: 5px;
-        margin: 20px 0;
-      }
-      .gallery {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 15px;
-        margin-top: 20px;
-      }
-      .gallery-item {
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        padding: 10px;
-        background: #fafafa;
-      }
-      .gallery-item img {
-        width: 100%;
-        border-radius: 5px;
-        cursor: pointer;
-      }
-      .gallery-item img:hover {
-        opacity: 0.8;
-      }
-      .filename {
-        font-size: 12px;
-        color: #666;
-        margin-top: 5px;
-        word-break: break-all;
-      }
-      .file-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .file-row .filename {
-        margin-top: 0;
-        flex: 1;
-      }
-      .time-label {
-        font-size: 12px;
-        color: #333;
-        margin-top: 5px;
-        font-weight: 600;
-      }
-      .stats {
-        background: #e8f5e9;
-        padding: 15px;
-        border-radius: 5px;
-        margin: 20px 0;
-      }
-      .stats p {
-        margin: 5px 0;
-        color: #2e7d32;
-      }
-      .refresh-btn {
-        background: #4caf50;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 16px;
-      }
-      .refresh-btn:hover {
-        background: #45a049;
-      }
-      .tabs {
-        display: flex;
-        gap: 0;
-        margin-top: 20px;
-        list-style: none;
-        padding: 0;
-        border-bottom: 2px solid #e0e0e0;
-      }
-      .tab-link {
-        display: inline-block;
-        color: #555;
-        padding: 10px 16px;
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 600;
-        border-bottom: 3px solid transparent;
-        margin-bottom: -2px;
-      }
-      .tab-link.active,
-      .tab-link:focus {
-        color: #2e7d32;
-        border-bottom-color: #4caf50;
-        outline: none;
-      }
-      .tab-panel {
-        display: none;
-      }
-      .tab-panel.active {
-        display: block;
-      }
-      .delete-btn {
-        background: transparent;
-        color: #d32f2f;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        font-size: 14px;
-        line-height: 1;
-        opacity: 0;
-        transition: opacity 0.15s ease-in-out;
-      }
-      .gallery-item:hover .delete-btn {
-        opacity: 1;
-      }
-      .delete-btn:hover {
-        color: #b71c1c;
-      }
-      .delete-form {
-        margin: 0;
-      }
-      video {
-        width: 100%;
-        max-width: 400px;
-        border-radius: 5px;
-      }
-    </style>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
   </head>
   <body>
     <div class="container">
@@ -199,11 +41,16 @@
 
       <section class="tab-panel" data-tab="live" role="tabpanel">
         <h2>📹 Live Stream</h2>
-        <img
-          data-src="{{ url_for('video_feed') }}"
-          class="live-feed"
-          alt="Live Camera Feed"
-        />
+        <div class="live-container">
+          <div class="live-spinner show">
+            <div class="spinner"></div>
+          </div>
+          <img
+            data-src="{{ url_for('video_feed') }}"
+            class="live-feed"
+            alt="Live Camera Feed"
+          />
+        </div>
       </section>
 
       <section class="tab-panel" data-tab="photos" role="tabpanel">
@@ -223,15 +70,17 @@
         <div class="gallery">
           {% for photo in day.photos %}
           <div class="gallery-item">
-            <a
-              href="{{ url_for('serve_file', filename=photo.path) }}"
-              target="_blank"
+            <button
+              class="thumb-btn photo-thumb"
+              type="button"
+              data-full="{{ url_for('serve_file', filename=photo.path) }}"
+              data-title="{{ photo.path }}"
             >
               <img
                 src="{{ url_for('serve_file', filename=photo.path) }}"
                 alt="{{ photo.path }}"
               />
-            </a>
+            </button>
             <div class="file-row">
               {% if photo.time_label %}
               <div class="time-label">{{ photo.time_label }}</div>
@@ -313,74 +162,13 @@
         {% endif %}
       </section>
     </div>
-    <script>
-      const panels = document.querySelectorAll('.tab-panel')
-      const tabs = document.querySelectorAll('.tab-link')
-      const defaultTab = 'photos'
-
-      const setActiveTab = (tabId) => {
-        panels.forEach((panel) => {
-          panel.classList.toggle('active', panel.dataset.tab === tabId)
-        })
-        tabs.forEach((tab) => {
-          const isActive = tab.dataset.tab === tabId
-          tab.classList.toggle('active', isActive)
-          tab.setAttribute('aria-selected', String(isActive))
-          tab.setAttribute('tabindex', isActive ? '0' : '-1')
-        })
-
-        const liveImage = document.querySelector('.live-feed')
-        if (liveImage) {
-          if (tabId === 'live') {
-            liveImage.src = liveImage.dataset.src
-          } else {
-            liveImage.removeAttribute('src')
-          }
-        }
-      }
-
-      tabs.forEach((tab) => {
-        tab.addEventListener('click', (event) => {
-          event.preventDefault()
-          const tabId = tab.dataset.tab
-          setActiveTab(tabId)
-          history.replaceState(null, '', `#${tabId}`)
-        })
-      })
-
-      const initialTab = window.location.hash.replace('#', '') || defaultTab
-      setActiveTab(initialTab)
-
-      document.querySelectorAll('.delete-form').forEach((form) => {
-        form.addEventListener('submit', async (event) => {
-          event.preventDefault()
-
-          if (!confirm('Delete this file?')) {
-            return
-          }
-
-          try {
-            const response = await fetch(form.action, {
-              method: 'POST',
-              headers: {
-                'X-Requested-With': 'fetch',
-              },
-            })
-
-            if (!response.ok) {
-              alert('Delete failed. Please try again.')
-              return
-            }
-
-            const card = form.closest('.gallery-item')
-            if (card) {
-              card.remove()
-            }
-          } catch (error) {
-            alert('Delete failed. Please try again.')
-          }
-        })
-      })
-    </script>
+    <dialog class="photo-dialog" id="photo-dialog">
+      <div class="dialog-header">
+        <div class="dialog-title" id="photo-dialog-title"></div>
+        <button class="dialog-close" type="button" aria-label="Close">✕</button>
+      </div>
+      <img id="photo-dialog-image" alt="Preview" />
+    </dialog>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
   </body>
 </html>
