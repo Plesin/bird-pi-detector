@@ -21,6 +21,16 @@ for var in PI_HOST PI_PATH LOCAL_PATH PYTHON_CMD; do
   fi
 done
 
+# Cleanup function to run on exit
+cleanup() {
+  echo ""
+  echo "🛑 Stopping bird_viewer.py on Pi..."
+  ssh "$PI_HOST" "pkill -f bird_viewer.py || true" || true
+  echo "✅ Stopped"
+}
+
+trap cleanup EXIT
+
 sync_and_restart() {
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "📡 Syncing to Pi..."
