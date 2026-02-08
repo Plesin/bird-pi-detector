@@ -111,23 +111,27 @@
       }
       .tabs {
         display: flex;
-        gap: 8px;
+        gap: 0;
         margin-top: 20px;
-        flex-wrap: wrap;
+        list-style: none;
+        padding: 0;
+        border-bottom: 2px solid #e0e0e0;
       }
-      .tab-btn {
-        background: #e0e0e0;
-        color: #333;
-        border: none;
-        padding: 8px 14px;
-        border-radius: 999px;
-        cursor: pointer;
+      .tab-link {
+        display: inline-block;
+        color: #555;
+        padding: 10px 16px;
+        text-decoration: none;
         font-size: 14px;
         font-weight: 600;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
       }
-      .tab-btn.active {
-        background: #4caf50;
-        color: white;
+      .tab-link.active,
+      .tab-link:focus {
+        color: #2e7d32;
+        border-bottom-color: #4caf50;
+        outline: none;
       }
       .tab-panel {
         display: none;
@@ -177,22 +181,32 @@
         🔄 Refresh Gallery
       </button>
 
-      <div class="tabs" role="tablist">
-        <button class="tab-btn" type="button" data-tab="live">Live</button>
-        <button class="tab-btn" type="button" data-tab="photos">Photos</button>
-        <button class="tab-btn" type="button" data-tab="videos">Videos</button>
-      </div>
+      <ul class="tabs" role="tablist">
+        <li role="presentation">
+          <a class="tab-link" role="tab" href="#live" data-tab="live">Live</a>
+        </li>
+        <li role="presentation">
+          <a class="tab-link" role="tab" href="#photos" data-tab="photos"
+            >Photos</a
+          >
+        </li>
+        <li role="presentation">
+          <a class="tab-link" role="tab" href="#videos" data-tab="videos"
+            >Videos</a
+          >
+        </li>
+      </ul>
 
-      <section class="tab-panel" data-tab="live">
+      <section class="tab-panel" data-tab="live" role="tabpanel">
         <h2>📹 Live Stream</h2>
         <img
-          src="{{ url_for('video_feed') }}"
+          data-src="{{ url_for('video_feed') }}"
           class="live-feed"
           alt="Live Camera Feed"
         />
       </section>
 
-      <section class="tab-panel" data-tab="photos">
+      <section class="tab-panel" data-tab="photos" role="tabpanel">
         <h2>
           📸 Captured Photos{% if active_day_label %} - {{ active_day_label }}{%
           endif %}
@@ -218,11 +232,10 @@
                 alt="{{ photo.path }}"
               />
             </a>
-            {% if photo.time_label %}
-            <div class="time-label">{{ photo.time_label }}</div>
-            {% endif %}
             <div class="file-row">
-              <div class="filename">{{ photo.path }}</div>
+              {% if photo.time_label %}
+              <div class="time-label">{{ photo.time_label }}</div>
+              {% endif %}
               <form
                 class="delete-form"
                 method="post"
@@ -243,7 +256,7 @@
         {% endif %}
       </section>
 
-      <section class="tab-panel" data-tab="videos">
+      <section class="tab-panel" data-tab="videos" role="tabpanel">
         <h2>
           🎥 Captured Videos{% if active_day_label %} - {{ active_day_label }}{%
           endif %}
@@ -267,11 +280,10 @@
               />
               Your browser doesn't support video playback.
             </video>
-            {% if video.time_label %}
-            <div class="time-label">{{ video.time_label }}</div>
-            {% endif %}
             <div class="file-row">
-              <div class="filename">{{ video.path }}</div>
+              {% if video.time_label %}
+              <div class="time-label">{{ video.time_label }}</div>
+              {% endif %}
               <form
                 class="delete-form"
                 method="post"
@@ -303,21 +315,34 @@
     </div>
     <script>
       const panels = document.querySelectorAll('.tab-panel')
-      const buttons = document.querySelectorAll('.tab-btn')
+      const tabs = document.querySelectorAll('.tab-link')
       const defaultTab = 'photos'
 
       const setActiveTab = (tabId) => {
         panels.forEach((panel) => {
           panel.classList.toggle('active', panel.dataset.tab === tabId)
         })
-        buttons.forEach((button) => {
-          button.classList.toggle('active', button.dataset.tab === tabId)
+        tabs.forEach((tab) => {
+          const isActive = tab.dataset.tab === tabId
+          tab.classList.toggle('active', isActive)
+          tab.setAttribute('aria-selected', String(isActive))
+          tab.setAttribute('tabindex', isActive ? '0' : '-1')
         })
+
+        const liveImage = document.querySelector('.live-feed')
+        if (liveImage) {
+          if (tabId === 'live') {
+            liveImage.src = liveImage.dataset.src
+          } else {
+            liveImage.removeAttribute('src')
+          }
+        }
       }
 
-      buttons.forEach((button) => {
-        button.addEventListener('click', () => {
-          const tabId = button.dataset.tab
+      tabs.forEach((tab) => {
+        tab.addEventListener('click', (event) => {
+          event.preventDefault()
+          const tabId = tab.dataset.tab
           setActiveTab(tabId)
           history.replaceState(null, '', `#${tabId}`)
         })
