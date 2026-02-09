@@ -32,6 +32,79 @@ h3 {
 .day-heading a:hover {
   text-decoration: underline;
 }
+.day-section {
+  margin-bottom: 30px;
+}
+.day-header {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  min-height: 44px;
+}
+.day-toggle-btn {
+  padding: 0 8px;
+  background: #f9f9f9;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  font-size: 14px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+  flex-shrink: 0;
+}
+.day-toggle-btn:hover {
+  background: #f0f0f0;
+  border-color: #4caf50;
+}
+.day-toggle-icon {
+  display: inline-block;
+  font-size: 12px;
+  color: #666;
+}
+.day-header-link {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  padding: 12px 15px;
+  background: #f9f9f9;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+  min-height: 44px;
+}
+.day-header-link:hover {
+  background: #f0f0f0;
+  border-color: #4caf50;
+}
+.day-header-content {
+  flex: 1;
+  text-align: left;
+}
+.day-header-title {
+  color: #333;
+  font-weight: 600;
+  margin: 0;
+}
+.day-header-meta {
+  color: #999;
+  font-size: 13px;
+  margin: 4px 0 0 0;
+}
+
+.day-content {
+  margin-top: 15px;
+}
 .live-container {
   position: relative;
   width: 100%;

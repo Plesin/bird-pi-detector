@@ -1,0 +1,110 @@
+{% if days and days|selectattr(media_type)|list %} {% for day in days %} {% if
+day[media_type] %}
+<div class="day-section" data-day-key="{{ day.key }}">
+  {% if not active_day_label %}
+  <div class="day-header">
+    <button
+      class="day-toggle-btn"
+      type="button"
+      data-toggle="day-{{ 'videos-' if media_type == 'videos' else '' }}{{ day.key }}"
+    >
+      <span class="day-toggle-icon"
+        >{% if day.is_today %}▼{% else %}▶{% endif %}</span
+      >
+    </button>
+    <a
+      href="{{ url_for('day_view', day_key=day.key) }}"
+      class="day-header-link"
+    >
+      <div class="day-header-content">
+        <div class="day-header-title">
+          {{ day.summary }} - {{ day[media_type + '_count'] }} {{
+          media_type[:-1] }}{{ "s" if day[media_type + '_count'] != 1 else "" }}
+        </div>
+        {% if day.first_time and day.last_time %}
+        <div class="day-header-meta">
+          {{ day.first_time }} to {{ day.last_time }}
+        </div>
+        {% endif %}
+      </div>
+    </a>
+  </div>
+  <div
+    class="day-content"
+    id="day-{{ 'videos-' if media_type == 'videos' else '' }}{{ day.key }}"
+    style="display: {% if day.is_today %}block{% else %}none{% endif %};"
+  >
+    {% else %}
+    <div class="day-content" style="display: block">
+      {% endif %}
+      <div class="gallery">
+        {% if media_type == 'photos' %} {% for photo in day.photos %}
+        <div class="gallery-item">
+          <button
+            class="thumb-btn photo-thumb"
+            type="button"
+            data-full="{{ url_for('serve_file', filename=photo.path) }}"
+            data-title="{{ photo.path }}"
+          >
+            <img
+              src="{{ url_for('serve_file', filename=photo.path) }}"
+              alt="{{ photo.path }}"
+              loading="lazy"
+            />
+          </button>
+          <div class="file-row">
+            {% if photo.time_label %}
+            <div class="time-label">{{ photo.time_label }}</div>
+            {% endif %}
+            <form
+              class="delete-form"
+              method="post"
+              action="{{ url_for('delete_file', filename=photo.path) }}"
+            >
+              <button class="delete-btn" type="submit" title="Delete">
+                🗑
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %} {% elif media_type == 'videos' %} {% for video in
+        day.videos %}
+        <div class="gallery-item">
+          <video controls>
+            <source
+              src="{{ url_for('serve_file', filename=video.path) }}"
+              type="video/x-msvideo"
+            />
+            Your browser doesn't support video playback.
+          </video>
+          <div class="file-row">
+            {% if video.time_label %}
+            <div class="time-label">{{ video.time_label }}</div>
+            {% endif %}
+            <form
+              class="delete-form"
+              method="post"
+              action="{{ url_for('delete_file', filename=video.path) }}"
+            >
+              <button class="delete-btn" type="submit" title="Delete">
+                🗑
+              </button>
+            </form>
+          </div>
+          {% if audio_set and video.path.replace('.avi', '.wav') in audio_set %}
+          <audio controls style="width: 100%; margin-top: 10px">
+            <source
+              src="{{ url_for('serve_file', filename=video.path.replace('.avi', '.wav')) }}"
+              type="audio/wav"
+            />
+          </audio>
+          {% endif %}
+        </div>
+        {% endfor %} {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %} {% endfor %} {% else %}
+  <p>No {{ media_type }} captured yet. Wait for birds to be detected!</p>
+  {% endif %}
+</div>
