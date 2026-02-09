@@ -1,3 +1,5 @@
+// Bird Viewer - Tab and Gallery Management Module
+
 const panels = document.querySelectorAll('.tab-panel')
 const tabs = document.querySelectorAll('.tab-link')
 const defaultTab = 'photos'
