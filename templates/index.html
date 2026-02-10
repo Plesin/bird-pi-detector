@@ -58,51 +58,8 @@
           📸 Captured Photos{% if active_day_label %} - {{ active_day_label }}{%
           endif %}
         </h2>
-        {% if days %} {% set has_any_photos = false %} {% for day in days %} {%
-        if day.photos %} {% set has_any_photos = true %} {% if not
-        active_day_label %}
-        <h3 class="day-heading">
-          <a href="{{ url_for('day_view', day_key=day.key) }}"
-            >{{ day.label }}</a
-          >
-        </h3>
-        {% endif %}
-        <div class="gallery">
-          {% for photo in day.photos %}
-          <div class="gallery-item">
-            <button
-              class="thumb-btn photo-thumb"
-              type="button"
-              data-full="{{ url_for('serve_file', filename=photo.path) }}"
-              data-title="{{ photo.path }}"
-            >
-              <img
-                src="{{ url_for('serve_file', filename=photo.path) }}"
-                alt="{{ photo.path }}"
-              />
-            </button>
-            <div class="file-row">
-              {% if photo.time_label %}
-              <div class="time-label">{{ photo.time_label }}</div>
-              {% endif %}
-              <form
-                class="delete-form"
-                method="post"
-                action="{{ url_for('delete_file', filename=photo.path) }}"
-              >
-                <button class="delete-btn" type="submit" title="Delete">
-                  🗑
-                </button>
-              </form>
-            </div>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %} {% endfor %} {% if not has_any_photos %}
-        <p>No photos captured yet. Wait for birds to be detected!</p>
-        {% endif %} {% else %}
-        <p>No photos captured yet. Wait for birds to be detected!</p>
-        {% endif %}
+        {% set media_type = 'photos' %} {% include '_day_section.html' with
+        context %}
       </section>
 
       <section class="tab-panel" data-tab="videos" role="tabpanel">
@@ -110,56 +67,8 @@
           🎥 Captured Videos{% if active_day_label %} - {{ active_day_label }}{%
           endif %}
         </h2>
-        {% if days %} {% set has_any_videos = false %} {% for day in days %} {%
-        if day.videos %} {% set has_any_videos = true %} {% if not
-        active_day_label %}
-        <h3 class="day-heading">
-          <a href="{{ url_for('day_view', day_key=day.key) }}"
-            >{{ day.label }}</a
-          >
-        </h3>
-        {% endif %}
-        <div class="gallery">
-          {% for video in day.videos %}
-          <div class="gallery-item">
-            <video controls>
-              <source
-                src="{{ url_for('serve_file', filename=video.path) }}"
-                type="video/x-msvideo"
-              />
-              Your browser doesn't support video playback.
-            </video>
-            <div class="file-row">
-              {% if video.time_label %}
-              <div class="time-label">{{ video.time_label }}</div>
-              {% endif %}
-              <form
-                class="delete-form"
-                method="post"
-                action="{{ url_for('delete_file', filename=video.path) }}"
-              >
-                <button class="delete-btn" type="submit" title="Delete">
-                  🗑
-                </button>
-              </form>
-            </div>
-            {% if audio_set and video.path.replace('.avi', '.wav') in audio_set
-            %}
-            <audio controls style="width: 100%; margin-top: 10px">
-              <source
-                src="{{ url_for('serve_file', filename=video.path.replace('.avi', '.wav')) }}"
-                type="audio/wav"
-              />
-            </audio>
-            {% endif %}
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %} {% endfor %} {% if not has_any_videos %}
-        <p>No videos captured yet.</p>
-        {% endif %} {% else %}
-        <p>No videos captured yet.</p>
-        {% endif %}
+        {% set media_type = 'videos' %} {% include '_day_section.html' with
+        context %}
       </section>
     </div>
     <dialog class="photo-dialog" id="photo-dialog">

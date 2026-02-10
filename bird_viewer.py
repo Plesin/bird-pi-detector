@@ -64,6 +64,34 @@ def format_day_label(day_key):
     except ValueError:
         return day_key
 
+def format_day_summary(day_key, photos):
+    """Format human-readable day summary like 'Feb 2nd 2026 - 45 photos'"""
+    if day_key == "unknown" or not photos:
+        return None
+    try:
+        date_obj = datetime.strptime(day_key, "%Y%m%d")
+        # Format: "Feb 2nd 2026"
+        return date_obj.strftime("%b %d %Y")
+    except ValueError:
+        return None
+
+def get_time_range_for_day(photos):
+    """Extract first and last capture time from photos"""
+    if not photos:
+        return None, None
+    
+    times = []
+    for photo in photos:
+        time_label = photo.get("time_label")
+        if time_label:
+            times.append(time_label)
+    
+    if times:
+        # Photos are sorted newest first, so reverse to get chronological order
+        times_sorted = sorted(times)
+        return times_sorted[0], times_sorted[-1]
+    return None, None
+
 def collect_media_by_day():
     """Collect media files grouped by day from subfolders or filenames"""
     days = {}
@@ -110,12 +138,22 @@ def collect_media_by_day():
         entry["photos"].sort(key=lambda item: item["path"], reverse=True)
         entry["videos"].sort(key=lambda item: item["path"], reverse=True)
         entry["audios"].sort(reverse=True)
+        
+        photos = entry["photos"]
+        first_time, last_time = get_time_range_for_day(photos)
+        
         day_list.append({
             "key": day_key,
             "label": format_day_label(day_key),
-            "photos": entry["photos"],
+            "summary": format_day_summary(day_key, photos),
+            "photo_count": len(photos),
+            "video_count": len(entry["videos"]),
+            "first_time": first_time,
+            "last_time": last_time,
+            "photos": photos,
             "videos": entry["videos"],
             "audios": entry["audios"],
+            "is_today": day_key == datetime.now().strftime("%Y%m%d"),
         })
 
     return day_list
