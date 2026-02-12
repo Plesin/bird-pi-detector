@@ -1,100 +1,71 @@
 // Bird Viewer - Tab and Gallery Management Module
 
-const panels = document.querySelectorAll('.tab-panel')
-const tabs = document.querySelectorAll('.tab-link')
+const photoDialog = document.getElementById('photo-dialog')
+const dialogImage = document.getElementById('photo-dialog-image')
+const dialogTitle = document.getElementById('photo-dialog-title')
+
+// ==================== Tab Management ====================
+// Handle DaisyUI tab switching with live feed loading
+const tabRadios = document.querySelectorAll('input[name="tab_gallery"]')
 const defaultTab = 'photos'
 
-const setActiveTab = (tabId) => {
-  panels.forEach((panel) => {
-    panel.classList.toggle('active', panel.dataset.tab === tabId)
-  })
-  tabs.forEach((tab) => {
-    const isActive = tab.dataset.tab === tabId
-    tab.classList.toggle('active', isActive)
-    tab.setAttribute('aria-selected', String(isActive))
-    tab.setAttribute('tabindex', isActive ? '0' : '-1')
-  })
-
+const handleTabChange = (tabId) => {
   const liveImage = document.querySelector('.live-feed')
   const liveSpinner = document.querySelector('.live-spinner')
-  if (liveImage) {
-    if (tabId === 'live') {
+
+  if (tabId === 'live') {
+    if (liveImage) {
       liveSpinner?.classList.add('show')
       liveImage.src = liveImage.dataset.src
       liveImage.onload = () => {
         liveSpinner?.classList.remove('show')
       }
-    } else {
+    }
+  } else {
+    if (liveImage) {
       liveImage.removeAttribute('src')
       liveSpinner?.classList.remove('show')
     }
   }
+
+  history.replaceState(null, '', `#${tabId}`)
 }
 
-tabs.forEach((tab) => {
-  tab.addEventListener('click', (event) => {
-    event.preventDefault()
-    const tabId = tab.dataset.tab
-    setActiveTab(tabId)
-    history.replaceState(null, '', `#${tabId}`)
+tabRadios.forEach((radio) => {
+  radio.addEventListener('change', (event) => {
+    if (event.target.checked) {
+      const tabId = event.target.getAttribute('data-tab')
+      handleTabChange(tabId)
+    }
   })
 })
 
+// Handle initial tab from URL hash
 const initialTab = window.location.hash.replace('#', '') || defaultTab
-setActiveTab(initialTab)
-
-// Photo dialog setup
-const photoDialog = document.getElementById('photo-dialog')
-const dialogImage = document.getElementById('photo-dialog-image')
-const dialogTitle = document.getElementById('photo-dialog-title')
-const dialogClose = document.querySelector('.dialog-close')
-
-// Day collapsible sections
-document.querySelectorAll('.day-toggle-btn').forEach((btn) => {
-  btn.addEventListener('click', async (event) => {
-    event.preventDefault()
-    event.stopPropagation()
-    const contentId = btn.dataset.toggle
-    const content = document.getElementById(contentId)
-    const icon = btn.querySelector('.day-toggle-icon')
-
-    if (content) {
-      const isVisible = content.style.display !== 'none'
-
-      if (isVisible) {
-        // Collapsing - hide and clear content
-        content.style.display = 'none'
-        icon.textContent = '▶'
-      } else {
-        // Expanding - show content
-        content.style.display = 'block'
-        icon.textContent = '▼'
-
-        // Attach event listeners to newly loaded/visible elements
-        attachGalleryListeners(content)
-      }
-    }
-  })
-})
-
-function attachGalleryListeners(container) {
-  // Attach delete form handlers
-  container.querySelectorAll('.delete-form').forEach((form) => {
-    if (!form.dataset.listenerAttached) {
-      form.addEventListener('submit', handleDelete)
-      form.dataset.listenerAttached = 'true'
-    }
-  })
-
-  // Attach photo dialog handlers
-  container.querySelectorAll('.photo-thumb').forEach((button) => {
-    if (!button.dataset.listenerAttached) {
-      button.addEventListener('click', handlePhotoClick)
-      button.dataset.listenerAttached = 'true'
-    }
-  })
+const initialRadio = document.querySelector(
+  `input[name="tab_gallery"][data-tab="${initialTab}"]`,
+)
+if (initialRadio) {
+  initialRadio.checked = true
+  // Trigger change event to load live feed if needed
+  initialRadio.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
+// ==================== Photo Dialog ====================
+function handlePhotoClick() {
+  dialogImage.src = this.dataset.full
+  dialogTitle.textContent = this.dataset.title || ''
+  photoDialog.showModal()
+}
+
+photoDialog.addEventListener('click', (event) => {
+  // Close when clicking outside the modal box
+  if (event.target === photoDialog) {
+    photoDialog.close()
+  }
+})
+
+// ==================== Delete Handling ====================
 async function handleDelete(event) {
   event.preventDefault()
 
@@ -115,7 +86,7 @@ async function handleDelete(event) {
       return
     }
 
-    const card = this.closest('.gallery-item')
+    const card = this.closest('.card')
     if (card) {
       card.remove()
     }
@@ -124,25 +95,58 @@ async function handleDelete(event) {
   }
 }
 
-function handlePhotoClick() {
-  dialogImage.src = this.dataset.full
-  dialogTitle.textContent = this.dataset.title || ''
-  photoDialog.showModal()
+// ==================== Gallery Event Listeners ====================
+function attachGalleryListeners(container) {
+  // Attach delete form handlers
+  container.querySelectorAll('.delete-form').forEach((form) => {
+    if (!form.dataset.listenerAttached) {
+      form.addEventListener('submit', handleDelete)
+      form.dataset.listenerAttached = 'true'
+    }
+  })
+
+  // Attach photo dialog handlers
+  container.querySelectorAll('.photo-thumb').forEach((button) => {
+    if (!button.dataset.listenerAttached) {
+      button.addEventListener('click', handlePhotoClick)
+      button.dataset.listenerAttached = 'true'
+    }
+  })
 }
 
-dialogClose.addEventListener('click', () => {
-  photoDialog.close()
-})
-
-photoDialog.addEventListener('click', (event) => {
-  if (event.target === photoDialog) {
-    photoDialog.close()
+// ==================== Collapse Event Listeners ====================
+// Handle collapse open/close to attach listeners as needed
+document.querySelectorAll('.collapse').forEach((collapse) => {
+  const checkbox = collapse.querySelector('input[type="checkbox"]')
+  if (checkbox) {
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        // When opening, attach listeners
+        const gallery = collapse.querySelector('.gallery')
+        if (gallery) {
+          attachGalleryListeners(gallery)
+        }
+      }
+    })
   }
 })
 
-// Initial setup: attach listeners to visible galleries (e.g., today's section)
-document.querySelectorAll('.day-content').forEach((content) => {
-  if (content.style.display !== 'none') {
-    attachGalleryListeners(content)
-  }
-})
+// ==================== Initial Setup ====================
+// Attach listeners to initially visible galleries
+document
+  .querySelectorAll(
+    '.collapse.collapse-open, .day-content[style*="display: block"]',
+  )
+  .forEach((section) => {
+    const gallery = section.querySelector('.gallery')
+    if (gallery) {
+      attachGalleryListeners(gallery)
+    }
+  })
+
+// Also attach to any galleries that are not in collapsed sections
+document
+  .querySelectorAll('.day-content:not([style*="display: none"]) .gallery')
+  .forEach((gallery) => {
+    attachGalleryListeners(gallery)
+  })
