@@ -97,7 +97,7 @@ def collect_media_by_day():
     days = {}
     for root, _, files in os.walk(OUTPUT_DIR):
         for filename in files:
-            if not filename.endswith(('.jpg', '.avi', '.wav')):
+            if not filename.endswith(('.jpg', '.avi', '.mp4', '.wav')):
                 continue
 
             full_path = os.path.join(root, filename)
@@ -123,7 +123,7 @@ def collect_media_by_day():
 
             if filename.endswith('.jpg'):
                 day_entry["photos"].append(media_item)
-            elif filename.endswith('.avi'):
+            elif filename.endswith(('.avi', '.mp4')):
                 day_entry["videos"].append(media_item)
             elif filename.endswith('.wav'):
                 day_entry["audios"].append(rel_path)

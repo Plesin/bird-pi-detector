@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import time
 import os
+import subprocess
 from datetime import datetime
 from threading import Thread
 import pyaudio
@@ -16,18 +17,18 @@ import wave
 # ==================== CONFIGURATION ====================
 
 # Mode: "photo" or "video"
-CAPTURE_MODE = "photo"
+CAPTURE_MODE = "video"
 
 # Photo mode settings
 PHOTOS_PER_DETECTION = 3
-PHOTO_DELAY_SECONDS = 2
+PHOTO_DELAY_SECONDS = 3
 
 # Video mode settings
 VIDEO_DURATION_SECONDS = 10
 RECORD_AUDIO = True
 
 # Detection settings
-MOTION_THRESHOLD = 10000  # Lower = more sensitive (try 3000-10000)
+MOTION_THRESHOLD = 15000  # Lower = more sensitive (try 3000-10000)
 COOLDOWN_SECONDS = 30    # Time to wait before next detection
 
 # Camera settings
@@ -147,30 +148,48 @@ class BirdDetector:
         """Callback for audio recording"""
         self.audio_frames.append(in_data)
         return (in_data, pyaudio.paContinue)
-    
     def record_video_with_audio(self):
-        global RECORD_AUDIO
-        """Record video with audio"""
+        """Record video with audio using ffmpeg for MP4 output"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         day_dir = self.get_day_dir(timestamp)
-        video_filename = os.path.join(day_dir, f"bird_{timestamp}.avi")
+        video_filename = os.path.join(day_dir, f"bird_{timestamp}.mp4")
         audio_filename = os.path.join(day_dir, f"bird_{timestamp}.wav")
         
         print(f"\n🐦 Bird detected! Recording {VIDEO_DURATION_SECONDS}s video...")
         
-        # Setup video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        out = cv2.VideoWriter(
-            video_filename, 
-            fourcc, 
-            CAMERA_FPS, 
-            (CAMERA_WIDTH, CAMERA_HEIGHT)
-        )
+        # Setup ffmpeg process for MP4 encoding
+        # Using ultrafast preset for Raspberry Pi performance
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',  # Overwrite output file
+            '-loglevel', 'error',  # Reduce logging
+            '-f', 'rawvideo',
+            '-pixel_format', 'bgr24',
+            '-video_size', f'{CAMERA_WIDTH}x{CAMERA_HEIGHT}',
+            '-framerate', str(CAMERA_FPS),
+            '-i', 'pipe:',
+            '-c:v', 'libx264',  # H.264 codec
+            '-preset', 'ultrafast',  # Fastest encoding for Pi
+            '-crf', '28',  # Lower quality for faster encoding
+            video_filename
+        ]
+        
+        try:
+            ffmpeg_process = subprocess.Popen(
+                ffmpeg_cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+        except FileNotFoundError:
+            print("  ❌ ffmpeg not found. Install with: apt install ffmpeg")
+            return
         
         # Setup audio recording if enabled
         audio_stream = None
         p = None
-        if RECORD_AUDIO:
+        audio_enabled = RECORD_AUDIO
+        if audio_enabled:
             try:
                 p = pyaudio.PyAudio()
                 self.audio_frames = []
@@ -185,40 +204,70 @@ class BirdDetector:
                 audio_stream.start_stream()
                 print("  🎤 Audio recording started")
             except Exception as e:
-                print(f"  ⚠️  Audio recording failed: {e}")
-                RECORD_AUDIO = False
+                print(f"  ⚠️  Audio recording skipped (no audio hardware): {type(e).__name__}")
+                audio_enabled = False
+                audio_stream = None
+                if p:
+                    p.terminate()
+                    p = None
         
         # Record video
         start_time = time.time()
         frame_count = 0
         
-        while time.time() - start_time < VIDEO_DURATION_SECONDS:
-            ret, frame = self.cap.read()
-            if ret:
-                out.write(frame)
-                frame_count += 1
-            else:
-                print("  ❌ Failed to read frame")
-                break
+        print(f"  📹 Capturing {VIDEO_DURATION_SECONDS}s of video...")
+        try:
+            while time.time() - start_time < VIDEO_DURATION_SECONDS:
+                ret, frame = self.cap.read()
+                if ret:
+                    try:
+                        ffmpeg_process.stdin.write(frame.tobytes())
+                        ffmpeg_process.stdin.flush()  # Flush after each frame
+                        frame_count += 1
+                    except BrokenPipeError:
+                        print("  ❌ ffmpeg pipe broken")
+                        break
+                else:
+                    print("  ❌ Failed to read frame from camera")
+                    break
+        except KeyboardInterrupt:
+            print("  ⏹️  Recording interrupted")
+        
+        # Close ffmpeg pipe - wait for encoding to complete
+        try:
+            ffmpeg_process.stdin.close()
+            # Wait up to 120 seconds for encoding to complete
+            stdout, stderr = ffmpeg_process.communicate(timeout=120)
+            if stderr:
+                print(f"  ⚠️  ffmpeg: {stderr.decode()}")
+        except subprocess.TimeoutExpired:
+            print(f"  ⚠️  ffmpeg timeout after 120s - killing process")
+            ffmpeg_process.kill()
+            stdout, stderr = ffmpeg_process.communicate()
+        except Exception as e:
+            print(f"  ⚠️  Error closing ffmpeg: {e}")
         
         # Stop audio recording
         if audio_stream:
             audio_stream.stop_stream()
             audio_stream.close()
             
-            # Save audio file
-            wf = wave.open(audio_filename, 'wb')
-            wf.setnchannels(AUDIO_CHANNELS)
-            wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
-            wf.setframerate(AUDIO_RATE)
-            wf.writeframes(b''.join(self.audio_frames))
-            wf.close()
-            print(f"  🎤 Saved audio: {audio_filename}")
+            if audio_enabled and self.audio_frames:
+                # Save audio file
+                try:
+                    wf = wave.open(audio_filename, 'wb')
+                    wf.setnchannels(AUDIO_CHANNELS)
+                    wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+                    wf.setframerate(AUDIO_RATE)
+                    wf.writeframes(b''.join(self.audio_frames))
+                    wf.close()
+                    print(f"  🎤 Saved audio: {audio_filename}")
+                except Exception as e:
+                    print(f"  ⚠️  Failed to save audio: {type(e).__name__}")
         
         if p:
             p.terminate()
         
-        out.release()
         print(f"  🎥 Saved video: {video_filename} ({frame_count} frames)")
     
     def run(self):
