@@ -9,9 +9,17 @@ import cv2
 import os
 from datetime import datetime
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, use system environment variables
+
+from camera_config import CameraConfig, get_camera_from_env
+
 # Configuration
 OUTPUT_DIR = "media"
-CAMERA_INDEX = 0
 
 app = Flask(__name__)
 
@@ -19,9 +27,12 @@ TEMPLATE_NAME = "index.html"
 
 def generate_frames():
     """Generate frames from camera for live streaming"""
-    camera = cv2.VideoCapture(CAMERA_INDEX)
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    camera_config = get_camera_from_env()
+    camera = camera_config.open_camera(
+        width=1920,
+        height=1080,
+        fps=30
+    )
     
     try:
         while True:
@@ -37,7 +48,7 @@ def generate_frames():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
     finally:
-        camera.release()
+        camera_config.close()
 
 def extract_day_from_name(filename):
     """Extract YYYYMMDD from filenames like bird_YYYYMMDD_HHMMSS_1.jpg"""

@@ -13,6 +13,15 @@ from threading import Thread
 import pyaudio
 import wave
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, use system environment variables
+
+from camera_config import CameraConfig, get_camera_from_env
+
 # ==================== CONFIGURATION ====================
 
 # Mode: "photo" or "video"
@@ -50,22 +59,16 @@ class BirdDetector:
         # Create output directory
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         
-        # Initialize camera
+        # Initialize camera using camera configuration
+        camera_config = get_camera_from_env()
+        
         print("Initializing camera...")
-        self.cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L2)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, CAMERA_WIDTH)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, CAMERA_HEIGHT)
-        self.cap.set(cv2.CAP_PROP_FPS, CAMERA_FPS)
-        
-        if not self.cap.isOpened():
-            raise Exception("Could not open camera!")
-        
-        # Test capture
-        ret, frame = self.cap.read()
-        if not ret:
-            raise Exception("Could not read from camera!")
-        
-        print(f"Camera initialized: {frame.shape[1]}x{frame.shape[0]}")
+        self.cap = camera_config.open_camera(
+            width=CAMERA_WIDTH,
+            height=CAMERA_HEIGHT,
+            fps=CAMERA_FPS
+        )
+        self.camera_config = camera_config
         
         # Initialize background subtractor for motion detection
         self.bg_subtractor = cv2.createBackgroundSubtractorMOG2(
@@ -283,7 +286,7 @@ class BirdDetector:
         except KeyboardInterrupt:
             print("\n\n🛑 Stopping bird detection system...")
         finally:
-            self.cap.release()
+            self.camera_config.close()
             cv2.destroyAllWindows()
             print("✅ Camera released. Goodbye!")
 
