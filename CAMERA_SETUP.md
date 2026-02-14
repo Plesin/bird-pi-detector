@@ -54,6 +54,65 @@ CAMERA_TYPE=usb_webcam
 CAMERA_TYPE=pi_hq
 ```
 
+### Example 3: Use Pi HQ Camera with Custom White Balance
+
+```
+# .env
+CAMERA_TYPE=pi_hq
+CAMERA_AWB_MODE=7
+```
+
+## Pi HQ Camera Settings
+
+The Pi HQ Camera supports additional configuration options:
+
+### White Balance Mode (`CAMERA_AWB_MODE`)
+
+Controls how the camera adjusts color temperature. Default is **7 (Cloudy)** which provides realistic colors in most conditions.
+
+```bash
+# In .env (optional):
+CAMERA_AWB_MODE=7  # See options below
+```
+
+**Available Modes:**
+
+| Mode         | Value | Description                         | Best For                        |
+| ------------ | ----- | ----------------------------------- | ------------------------------- |
+| Off          | 0     | Manual, no white balance correction | Custom color grading            |
+| Auto         | 1     | Automatic detection                 | Varying light conditions        |
+| Incandescent | 2     | Warmest (for tungsten bulbs)        | Indoor warm lighting            |
+| Tungsten     | 3     | Warm lighting                       | Incandescent bulbs              |
+| Indoor       | 5     | Neutral indoor lighting             | Indoor cameras                  |
+| Daylight     | 6     | Bright daylight (cooler)            | Bright sunny days               |
+| Cloudy       | **7** | Overcast skies (adds warmth)        | Outdoor bird watching (DEFAULT) |
+
+**Example Usage:**
+
+```bash
+# For bright sunny conditions
+CAMERA_AWB_MODE=6
+
+# For indoor tungsten lighting
+CAMERA_AWB_MODE=2
+
+# For cloudy/overcast (default - most realistic for bird watching)
+CAMERA_AWB_MODE=7
+```
+
+### Other Available Camera Settings
+
+The following settings can be added to `.env` for fine-tuning (advanced users):
+
+- `CAMERA_EXPOSURE_TIME` - Exposure duration in microseconds (e.g., 33000 for ~30fps)
+- `CAMERA_ANALOGUE_GAIN` - Sensor gain (e.g., 1.0 = normal, 2.0 = 2x amplification)
+- `CAMERA_BRIGHTNESS` - Output brightness adjustment (-1.0 to +1.0)
+- `CAMERA_CONTRAST` - Output contrast adjustment (0.0 to 2.0, default 1.0)
+- `CAMERA_SATURATION` - Color saturation (0.0 to 2.0, default 1.0)
+- `CAMERA_SHARPNESS` - Output sharpness (0.0 to 2.0, default 1.0)
+
+These are currently available via environment variables if needed. Let us know if you'd like them exposed in the configuration!
+
 ## How It Works
 
 1. **Camera Detection**: On startup, the system scans available cameras:

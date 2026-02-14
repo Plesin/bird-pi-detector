@@ -16,6 +16,32 @@ try:
 except ImportError:
     PICAMERA2_AVAILABLE = False
 
+
+class WhiteBalanceMode:
+    """White Balance Mode options for Pi HQ Camera (libcamera)"""
+    OFF = 0  # Manual, no white balance correction
+    AUTO = 1  # Automatic detection
+    INCANDESCENT = 2  # Warmest (indoor tungsten bulbs)
+    TUNGSTEN = 3  # Warm lighting
+    INDOOR = 5  # Neutral indoor lighting
+    DAYLIGHT = 6  # Bright daylight (cooler)
+    CLOUDY = 7  # Overcast skies (adds warmth)
+    
+    @classmethod
+    def description(cls, mode):
+        """Get description for a white balance mode"""
+        modes = {
+            0: "Off (manual, no correction)",
+            1: "Auto (automatic detection)",
+            2: "Incandescent (warmest, tungsten bulbs)",
+            3: "Tungsten (warm lighting)",
+            5: "Indoor (neutral)",
+            6: "Daylight (bright, cooler)",
+            7: "Cloudy (overcast, adds warmth)"
+        }
+        return modes.get(mode, "Unknown mode")
+
+
 class CameraType:
     """Camera type identifiers"""
     USB_WEBCAM = "usb_webcam"
@@ -35,6 +61,17 @@ class PiCamera2Wrapper:
         self.width = width
         self.height = height
         self.fps = fps
+        
+        # Get white balance mode from environment or use default (Cloudy)
+        awb_mode_env = os.getenv('CAMERA_AWB_MODE')
+        if awb_mode_env is not None:
+            try:
+                self.awb_mode = int(awb_mode_env)
+            except ValueError:
+                self.awb_mode = WhiteBalanceMode.CLOUDY
+        else:
+            self.awb_mode = WhiteBalanceMode.CLOUDY
+        
         self._open_camera()
     
     def _open_camera(self):
@@ -44,11 +81,15 @@ class PiCamera2Wrapper:
         # Create a config for video capture
         video_config = self.picam2.create_video_configuration(
             main={"size": (self.width, self.height), "format": "RGB888"},
-            controls={"FrameRate": self.fps}
+            controls={
+                "FrameRate": self.fps,
+                "AwbMode": self.awb_mode
+            }
         )
         self.picam2.configure(video_config)
         self.picam2.start()
         
+        print(f"Camera white balance mode: {self.awb_mode} - {WhiteBalanceMode.description(self.awb_mode)}")
         # Warm up the camera
         import time
         time.sleep(0.2)
@@ -59,9 +100,8 @@ class PiCamera2Wrapper:
         """Read a frame (OpenCV-compatible interface)"""
         try:
             frame = self.picam2.capture_array()
-            # picamera2 returns RGB, convert to BGR for OpenCV compatibility
-            frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            return True, frame_bgr
+            # Try NO conversion - return RGB as-is
+            return True, frame
         except Exception as e:
             print(f"Error reading frame: {e}")
             return False, None
