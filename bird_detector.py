@@ -40,8 +40,8 @@ MOTION_THRESHOLD = 10000  # Lower = more sensitive (try 3000-10000)
 COOLDOWN_SECONDS = 30    # Time to wait before next detection
 
 # Camera settings
-CAMERA_WIDTH = 1920
-CAMERA_HEIGHT = 1080
+CAMERA_WIDTH = 2560 # 2560 | 4056
+CAMERA_HEIGHT = 1440 # 1440 | 3040
 CAMERA_FPS = 30
 
 # Storage settings
