@@ -59,11 +59,14 @@ def extract_day_from_name(filename):
     return None
 
 def extract_time_from_name(filename):
-    """Extract HH:MM:SS from filenames like bird_YYYYMMDD_HHMMSS_1.jpg"""
+    """Extract HH:MM:SS from filenames like bird_YYYYMMDD_HHMMSS_1.jpg or bird_YYYYMMDD_HHMMSS.mp4"""
     base = os.path.basename(filename)
     parts = base.split('_')
-    if len(parts) >= 3 and len(parts[2]) == 6 and parts[2].isdigit():
-        return f"{parts[2][0:2]}:{parts[2][2:4]}:{parts[2][4:6]}"
+    if len(parts) >= 3:
+        # Remove file extension from the last part
+        time_part = parts[2].split('.')[0]
+        if len(time_part) == 6 and time_part.isdigit():
+            return f"{time_part[0:2]}:{time_part[2:4]}:{time_part[4:6]}"
     return None
 
 def format_day_label(day_key):
@@ -108,7 +111,7 @@ def collect_media_by_day():
     days = {}
     for root, _, files in os.walk(OUTPUT_DIR):
         for filename in files:
-            if not filename.endswith(('.jpg', '.avi', '.wav')):
+            if not filename.endswith(('.jpg', '.mp4', '.avi', '.wav')):
                 continue
 
             full_path = os.path.join(root, filename)
@@ -134,7 +137,7 @@ def collect_media_by_day():
 
             if filename.endswith('.jpg'):
                 day_entry["photos"].append(media_item)
-            elif filename.endswith('.avi'):
+            elif filename.endswith(('.mp4', '.avi')):
                 day_entry["videos"].append(media_item)
             elif filename.endswith('.wav'):
                 day_entry["audios"].append(rel_path)

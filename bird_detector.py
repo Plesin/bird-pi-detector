@@ -10,6 +10,7 @@ import time
 import os
 from datetime import datetime
 from threading import Thread
+from collections import deque
 import pyaudio
 import wave
 
@@ -25,7 +26,7 @@ from camera_config import CameraConfig, get_camera_from_env
 # ==================== CONFIGURATION ====================
 
 # Mode: "photo" or "video"
-CAPTURE_MODE = "photo"
+CAPTURE_MODE = "video"
 
 # Photo mode settings
 PHOTOS_PER_DETECTION = 3
@@ -33,7 +34,7 @@ PHOTO_DELAY_SECONDS = 2
 
 # Video mode settings
 VIDEO_DURATION_SECONDS = 10
-RECORD_AUDIO = True
+RECORD_AUDIO = False
 
 # Detection settings
 MOTION_THRESHOLD = 10000  # Lower = more sensitive (try 3000-10000)
@@ -79,6 +80,10 @@ class BirdDetector:
         
         self.last_detection_time = time.time()
         self.audio_frames = []
+        
+        # Frame buffer for threaded recording
+        self.frame_buffer = deque(maxlen=300)  # Buffer up to 300 frames
+        self.stop_reading = False
 
     def get_day_dir(self, timestamp):
         """Create and return daily output directory"""
@@ -151,18 +156,53 @@ class BirdDetector:
         self.audio_frames.append(in_data)
         return (in_data, pyaudio.paContinue)
     
+    def continuous_frame_reader(self, duration_seconds):
+        """Read frames continuously into buffer for specified duration"""
+        start_time = time.time()
+        self.frame_buffer.clear()
+        self.stop_reading = False
+        frame_times = []
+        
+        while time.time() - start_time < duration_seconds and not self.stop_reading:
+            frame_start = time.time()
+            ret, frame = self.cap.read()
+            frame_time = time.time() - frame_start
+            
+            if ret:
+                self.frame_buffer.append(frame)
+                frame_times.append(frame_time)
+            else:
+                print("  ❌ Failed to read frame from camera")
+                break
+        
+        # Calculate actual FPS
+        if frame_times:
+            avg_frame_time = sum(frame_times) / len(frame_times)
+            actual_fps = 1.0 / avg_frame_time
+            print(f"  📊 Camera FPS analysis:")
+            print(f"     Avg frame read time: {avg_frame_time*1000:.1f}ms")
+            print(f"     Actual camera FPS: {actual_fps:.1f}")
+                
     def record_video_with_audio(self):
         global RECORD_AUDIO
-        """Record video with audio"""
+        """Record video with audio using threaded frame reading"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         day_dir = self.get_day_dir(timestamp)
-        video_filename = os.path.join(day_dir, f"bird_{timestamp}.avi")
+        video_filename = os.path.join(day_dir, f"bird_{timestamp}.mp4")
         audio_filename = os.path.join(day_dir, f"bird_{timestamp}.wav")
         
         print(f"\n🐦 Bird detected! Recording {VIDEO_DURATION_SECONDS}s video...")
         
+        # Start frame reading thread
+        reader_thread = Thread(target=self.continuous_frame_reader, args=(VIDEO_DURATION_SECONDS,))
+        reader_thread.daemon = True
+        reader_thread.start()
+        
+        # Wait a moment for frames to start buffering
+        time.sleep(0.1)
+        
         # Setup video writer
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'avc1')
         out = cv2.VideoWriter(
             video_filename, 
             fourcc, 
@@ -191,18 +231,14 @@ class BirdDetector:
                 print(f"  ⚠️  Audio recording failed: {e}")
                 RECORD_AUDIO = False
         
-        # Record video
-        start_time = time.time()
-        frame_count = 0
+        # Wait for reader thread to finish and write all frames
+        reader_thread.join()
         
-        while time.time() - start_time < VIDEO_DURATION_SECONDS:
-            ret, frame = self.cap.read()
-            if ret:
-                out.write(frame)
-                frame_count += 1
-            else:
-                print("  ❌ Failed to read frame")
-                break
+        frame_count = 0
+        while self.frame_buffer:
+            frame = self.frame_buffer.popleft()
+            out.write(frame)
+            frame_count += 1
         
         # Stop audio recording
         if audio_stream:
@@ -222,7 +258,11 @@ class BirdDetector:
             p.terminate()
         
         out.release()
-        print(f"  🎥 Saved video: {video_filename} ({frame_count} frames)")
+        expected_frames = VIDEO_DURATION_SECONDS * CAMERA_FPS
+        print(f"  🎥 Saved video: {video_filename}")
+        print(f"     Recorded {frame_count} frames (expected {expected_frames})")
+        if frame_count < expected_frames * 0.8:
+            print(f"     ⚠️  Warning: Only {frame_count/expected_frames*100:.0f}% of expected frames recorded")
     
     def run(self):
         """Main detection loop"""
