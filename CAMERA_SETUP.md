@@ -1,77 +1,32 @@
-# Multi-Camera Support Guide
+# Pi HQ Camera Setup Guide
 
-The bird detector requires explicit camera configuration. You must specify which camera to use.
+The bird detector requires explicit camera configuration. This project uses the **Raspberry Pi HQ Camera** with libcamera.
 
-## Camera Detection & Configuration
+## Quick Start
 
-### Quick Start
-
-You must configure which camera to use. Set one of these in `.env`:
+Set this in `.env`:
 
 ```bash
-# Set camera by type (required)
-CAMERA_TYPE=pi_hq             # Use Pi HQ Camera
-CAMERA_TYPE=usb_webcam       # Use USB camera
-```
-
-### Supported Camera Types
-
-- **`usb_webcam`** - USB webcam (any standard USB camera)
-- **`pihq`** - Raspberry Pi HQ Camera (with libcamera support)
-
-## Detecting Available Cameras
-
-To see all detected cameras on your Raspberry Pi:
-
-```bash
-python3 camera_config.py
-```
-
-This will display:
-
-```
-============================================================
-Available Cameras:
-============================================================
-#1 | USB Camera | Type: usb_webcam | ✅ Available | Path: /dev/video0 | Resolution: 1920x1080
-#2 | imx477 | Type: pi_hq | ✅ Available | Path: /dev/video1 | Resolution: 4056x3040
-============================================================
-```
-
-## Configuration Examples
-
-### Example 1: Use USB camera
-
-```
-# .env
-CAMERA_TYPE=usb_webcam
-```
-
-### Example 2: Use Pi HQ Camera
-
-```
-# .env
 CAMERA_TYPE=pi_hq
 ```
 
-### Example 3: Use Pi HQ Camera with Custom White Balance
+That's it! The detector will automatically find and use your Pi HQ Camera.
 
-```
-# .env
+## Configuration
+
+### Basic Setup
+
+```bash
+# .env - Required
 CAMERA_TYPE=pi_hq
-CAMERA_AWB_MODE=7
 ```
-
-## Pi HQ Camera Settings
-
-The Pi HQ Camera supports additional configuration options:
 
 ### White Balance Mode (`CAMERA_AWB_MODE`)
 
-Controls how the camera adjusts color temperature. Default is **7 (Cloudy)** which provides realistic colors in most conditions.
+Controls how the camera adjusts color temperature. Default is **7 (Cloudy)**, which provides realistic colors outdoors for bird watching.
 
 ```bash
-# In .env (optional):
+# .env - Optional
 CAMERA_AWB_MODE=7  # See options below
 ```
 
@@ -87,92 +42,104 @@ CAMERA_AWB_MODE=7  # See options below
 | Daylight     | 6     | Bright daylight (cooler)            | Bright sunny days               |
 | Cloudy       | **7** | Overcast skies (adds warmth)        | Outdoor bird watching (DEFAULT) |
 
-**Example Usage:**
+**Examples:**
 
 ```bash
-# For bright sunny conditions
+# Bright sunny conditions
 CAMERA_AWB_MODE=6
 
-# For indoor tungsten lighting
+# Indoor tungsten lighting
 CAMERA_AWB_MODE=2
 
-# For cloudy/overcast (default - most realistic for bird watching)
+# Cloudy/overcast (default - most realistic for bird watching)
 CAMERA_AWB_MODE=7
 ```
 
-### Other Available Camera Settings
+## Pi HQ Camera Hardware
 
-The following settings can be added to `.env` for fine-tuning (advanced users):
+- **Sensor**: IMX477 (12.3 MP)
+- **Interface**: CSI-2 (Ribbon cable to CSI port)
+- **Resolution**: Up to 4056x3040 (12.3 MP)
+- **Controls**: Manual focus via lens adjustment ring
+- **Focus Range**: 19cm to infinity
 
-- `CAMERA_EXPOSURE_TIME` - Exposure duration in microseconds (e.g., 33000 for ~30fps)
-- `CAMERA_ANALOGUE_GAIN` - Sensor gain (e.g., 1.0 = normal, 2.0 = 2x amplification)
-- `CAMERA_BRIGHTNESS` - Output brightness adjustment (-1.0 to +1.0)
-- `CAMERA_CONTRAST` - Output contrast adjustment (0.0 to 2.0, default 1.0)
-- `CAMERA_SATURATION` - Color saturation (0.0 to 2.0, default 1.0)
-- `CAMERA_SHARPNESS` - Output sharpness (0.0 to 2.0, default 1.0)
+### Hardware Setup
 
-These are currently available via environment variables if needed. Let us know if you'd like them exposed in the configuration!
+1. Ensure the camera ribbon cable is correctly connected to **CSI0 or CSI1** port (not the DSI port)
+2. Enable camera through `raspi-config`:
+   ```bash
+   sudo raspi-config
+   # Navigate: Interfacing Options > Camera > Enable
+   ```
+3. Reboot: `sudo reboot`
 
-## How It Works
+### Verify Camera is Working
 
-1. **Camera Detection**: On startup, the system scans available cameras:
-   - `/dev/video*` devices (V4L2 cameras)
-   - Identifies camera types by hardware
-2. **Camera Selection**: Uses the `CAMERA_TYPE` setting in `.env` to select which camera to use
+```bash
+# Test with libcamera tools
+rpicam-still -o test.jpg -t 1000
 
-3. **Validation & Warnings**:
-   - If `CAMERA_TYPE` is not configured, the system will exit with an error
-   - If the configured camera type is not found, the system will exit with an error listing available cameras
-   - If other camera types are available that don't match your configuration, a warning is shown
-   - Example: You configured `usb_webcam` but a Pi HQ camera is also connected
+# Should create test.jpg in 1 second
+ls -lah test.jpg
+```
 
-4. **Camera-Specific Optimizations**:
-   - **USB webcam**: Autofocus enabled (if supported), buffer size optimized
-   - **Pi HQ**: Buffer size optimized for low latency
+## Resolution Configuration
+
+The detector uses different resolutions for different purposes:
+
+- **Detection (bird_detector.py)**: Configurable, defaults to 1024x768
+- **Web Viewer (bird_viewer.py)**: 1024x768 (recommended for smooth streaming)
+- **Photo Capture**: Full resolution (4056x3040) for high-quality archives
+
+You can modify resolution in the source code or via configuration.
 
 ## Troubleshooting
 
-### Camera not detected
+### Camera Not Found
 
 ```bash
-# Check devices on Linux/Pi
+# Check if camera is detected
+libcamera-hello
+
+# Check V4L2 devices
 ls -la /dev/video*
 
-# Check USB cameras
-lsusb
-
-# Check camera permissions
-# Make sure user is in video group:
-groups
-# If not listed:
-sudo usermod -aG video $USER
+# Should show /dev/video10 and possibly /dev/video11+ (libcamera devices)
 ```
 
-### Camera detected but not opening
+### No Image or Black Screen
 
-- Ensure the camera isn't already in use by another application
-- Check camera permissions: `ls -la /dev/video*`
-- Make sure your user is in the video group: `groups`
-- Verify `CAMERA_TYPE` in `.env` matches your connected camera
+1. **Check cable connection**: Ensure ribbon cable is fully seated in CSI port
+2. **Check CSI port**: Some Raspberry Pi boards have multiple CSI ports - try CSI0 or CSI1
+3. **Reboot and retry**: `sudo reboot`
+4. **Check permissions**: Your user should be in the video group
+   ```bash
+   groups
+   # If 'video' not listed:
+   sudo usermod -aG video $USER
+   # Then log out and back in
+   ```
 
-## Configuration Notes
+### Blue or Incorrect Color Tint
 
-- **`CAMERA_TYPE` is required** - You must set this in `.env`
-- If the configured camera type is not detected, the system will exit with an error
-- If a different camera type is detected than configured, a warning will be shown
+This is usually a white balance issue:
 
-## Using Multiple Cameras with Bird Detection
+1. Try different white balance modes in `.env`:
+   ```bash
+   CAMERA_AWB_MODE=6  # Daylight
+   CAMERA_AWB_MODE=7  # Cloudy (default, usually best)
+   ```
+2. Restart the detector: `python3 bird_detector.py`
 
-The `bird_detector.py` and `bird_viewer.py` scripts now use the camera configuration system. You can run them with different cameras:
+### Camera in Use by Another Application
 
 ```bash
-# Use Pi HQ Camera for detection
-export CAMERA_TYPE=pi_hq
-python3 bird_detector.py
+# Check what's using the camera
+lsof /dev/video*
 
-# Use USB camera for web viewer (in another terminal)
-export CAMERA_TYPE=usb_webcam
-python3 bird_viewer.py
+# Kill the process using the camera
+kill -9 <PID>
+
+# Or restart:
+sudo systemctl restart libcamera-daemon 2>/dev/null || true
 ```
-
-Or set them permanently in your `.env` file.
