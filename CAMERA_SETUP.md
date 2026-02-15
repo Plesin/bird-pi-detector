@@ -87,8 +87,8 @@ ls -lah test.jpg
 
 The detector uses different resolutions for different purposes:
 
-- **Detection (bird_detector.py)**: Configurable, defaults to 1024x768
-- **Web Viewer (bird_viewer.py)**: 1024x768 (recommended for smooth streaming)
+- **Detection (detector.py)**: Configurable, defaults to 1024x768
+- **Web Viewer (server.py)**: 1024x768 (recommended for smooth streaming)
 - **Photo Capture**: Full resolution (4056x3040) for high-quality archives
 
 You can modify resolution in the source code or via configuration.
@@ -129,7 +129,7 @@ This is usually a white balance issue:
    CAMERA_AWB_MODE=6  # Daylight
    CAMERA_AWB_MODE=7  # Cloudy (default, usually best)
    ```
-2. Restart the detector: `python3 bird_detector.py`
+2. Restart the detector: `python3 detector.py`
 
 ### Camera in Use by Another Application
 

@@ -77,9 +77,7 @@ class PiCamera2Wrapper:
             }
         )
         self.picam2.configure(video_config)
-        self.picam2.start()
-        
-        print(f"Camera white balance mode: {self.awb_mode} - {WhiteBalanceMode.description(self.awb_mode)}")
+        self.picam2.start()                
         
         # Warm up the camera
         import time
@@ -176,8 +174,7 @@ class CameraConfig:
         print(f"Opening camera: {cam_info['name']}")
         
         try:
-            self.camera = PiCamera2Wrapper(width=width, height=height, fps=fps)
-            print(f"Camera ready: {width}x{height} @ {fps} FPS")
+            self.camera = PiCamera2Wrapper(width=width, height=height, fps=fps)            
             return self.camera
         except Exception as e:
             raise Exception(f"Could not open Pi HQ Camera: {e}")
