@@ -274,8 +274,12 @@ class BirdDetector:
         print("\n" + "="*50)
         print(f"🐦 Bird Detection System Started")
         print(f"Mode: {CAPTURE_MODE.upper()}")
-        print(f"Motion threshold: {MOTION_THRESHOLD}")
-        print(f"Output directory: {OUTPUT_DIR}")
+        print(f"Resolution: {CAMERA_WIDTH}x{CAMERA_HEIGHT} @ {CAMERA_FPS} FPS")                
+        awb_mode_env = os.getenv('CAMERA_AWB_MODE')
+        if awb_mode_env is not None:
+            print(f"Camera AWB Mode: {awb_mode_env}")
+        else:
+            print(f"Camera AWB Mode: 7 (Cloudy)")
         print(f"Press Ctrl+C to stop")
         print("="*50 + "\n")
         
