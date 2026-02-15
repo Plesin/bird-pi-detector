@@ -24,8 +24,8 @@ done
 # Cleanup function to run on exit
 cleanup() {
   echo ""
-  echo "🛑 Stopping bird_viewer.py on Pi..."
-  ssh "$PI_HOST" "pkill -f bird_viewer.py || true" || true
+  echo "🛑 Stopping server.py on Pi..."
+  ssh "$PI_HOST" "pkill -f server.py || true" || true
   echo "✅ Stopped"
 }
 
@@ -47,9 +47,9 @@ sync_and_restart() {
     return 1
   }
   
-  echo "🔄 Restarting bird_viewer.py on Pi..."
-  ssh "$PI_HOST" "pkill -f bird_viewer.py || true; sleep 1" || true
-  ssh -f "$PI_HOST" "cd '$PI_PATH' && python3 bird_viewer.py > /tmp/bird_viewer.log 2>&1" || true
+  echo "🔄 Restarting server.py on Pi..."
+  ssh "$PI_HOST" "pkill -f server.py || true; sleep 1" || true
+  ssh -f "$PI_HOST" "cd '$PI_PATH' && python3 server.py > /tmp/server.log 2>&1" || true
   sleep 2
   
   echo "✅ Synced and restarted at $(date +'%Y-%m-%d %H:%M:%S')"

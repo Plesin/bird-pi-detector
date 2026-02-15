@@ -26,24 +26,29 @@ from camera_config import CameraConfig, get_camera_from_env
 # ==================== CONFIGURATION ====================
 
 # Mode: "photo" or "video"
-CAPTURE_MODE = "video"
+CAPTURE_MODE = "photo"
 
 # Photo mode settings
 PHOTOS_PER_DETECTION = 3
 PHOTO_DELAY_SECONDS = 2
 
 # Video mode settings
-VIDEO_DURATION_SECONDS = 10
+VIDEO_DURATION_SECONDS = 5
 RECORD_AUDIO = False
 
 # Detection settings
-MOTION_THRESHOLD = 10000  # Lower = more sensitive (try 3000-10000)
+MOTION_THRESHOLD = 20000  # Lower = more sensitive (try 3000-10000)
 COOLDOWN_SECONDS = 30    # Time to wait before next detection
 
 # Camera settings
 CAMERA_WIDTH = 2560 # 2560 | 4056
 CAMERA_HEIGHT = 1440 # 1440 | 3040
 CAMERA_FPS = 30
+
+# Use lower resolution for video mode to reduce CPU load
+if CAPTURE_MODE == "video":
+    CAMERA_WIDTH = 1920
+    CAMERA_HEIGHT = 1080
 
 # Storage settings
 OUTPUT_DIR = "media"
