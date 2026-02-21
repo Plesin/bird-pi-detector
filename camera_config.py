@@ -51,6 +51,7 @@ class PiCamera2Wrapper:
         self.width = width
         self.height = height
         self.fps = fps
+        self.last_metadata = None  # Store last captured metadata
         
         # Get white balance mode from environment or use default (Cloudy)
         awb_mode_env = os.getenv('CAMERA_AWB_MODE')
@@ -88,12 +89,39 @@ class PiCamera2Wrapper:
     def read(self):
         """Read a frame (OpenCV-compatible interface)"""
         try:
-            frame = self.picam2.capture_array()
+            # Capture with metadata
+            request = self.picam2.capture_request()
+            frame = request.make_array("main")
+            
+            # Get metadata dict (picamera2 API)
+            metadata = request.get_metadata()
+            
+            # Store metadata for later retrieval
+            self.last_metadata = {
+                "ExposureTime": metadata.get("ExposureTime"),  # in microseconds
+                "AnalogueGain": metadata.get("AnalogueGain"),
+                "DigitalGain": metadata.get("DigitalGain"),
+                "Lux": metadata.get("Lux"),
+                "ColourTemperature": metadata.get("ColourTemperature"),
+                "ColourGains": metadata.get("ColourGains"),  # (r_gain, b_gain) white balance
+                "AwbMode": self.awb_mode,  # camera white balance setting
+                "FocusLength": metadata.get("FocusLength"),
+                "FocusDistance": metadata.get("FocusDistance"),
+                "SensorTemperature": metadata.get("SensorTemperature"),
+            }
+            
+            # Release the request
+            request.release()
+            
             # Return RGB frame as-is
             return True, frame
         except Exception as e:
             print(f"Error reading frame: {e}")
             return False, None
+    
+    def get_metadata(self):
+        """Get the last captured metadata"""
+        return self.last_metadata
     
     def release(self):
         """Release camera resources"""

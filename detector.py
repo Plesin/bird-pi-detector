@@ -22,6 +22,7 @@ except ImportError:
     pass  # python-dotenv not installed, use system environment variables
 
 from camera_config import CameraConfig, get_camera_from_env
+from utils.exif import extract_exif_data, embed_exif_in_image
 
 # ==================== CONFIGURATION ====================
 
@@ -152,6 +153,19 @@ class BirdDetector:
                 )
                 cv2.imwrite(filename, frame)
                 print(f"  📸 Saved: {filename}")
+                
+                # Capture and embed EXIF metadata in image
+                if hasattr(self.cap, 'get_metadata'):
+                    metadata = self.cap.get_metadata()
+                    if metadata:
+                        exif_data = extract_exif_data(metadata)
+                        if exif_data:
+                            embed_exif_in_image(filename, exif_data)
+                            # Print EXIF info
+                            exif_str = ", ".join([f"{k}={v}" for k, v in exif_data.items() if k in ['ISO', 'ShutterSpeed']])
+                            if exif_str:
+                                print(f"     EXIF: {exif_str}")
+                
                 time.sleep(PHOTO_DELAY_SECONDS)
             else:
                 print(f"  ❌ Failed to capture photo {i+1}")

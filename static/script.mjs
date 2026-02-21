@@ -3,6 +3,7 @@
 const photoDialog = document.getElementById('photo-dialog')
 const dialogImage = document.getElementById('photo-dialog-image')
 const dialogTitle = document.getElementById('photo-dialog-title')
+const dialogExif = document.getElementById('photo-dialog-exif')
 
 // ==================== Tab Management ====================
 // Handle DaisyUI tab switching with live feed loading
@@ -55,6 +56,16 @@ if (initialRadio) {
 function handlePhotoClick() {
   dialogImage.src = this.dataset.full
   dialogTitle.textContent = this.dataset.title || ''
+
+  // Display EXIF data if available
+  const exifStr = this.dataset.exif || ''
+  if (exifStr) {
+    dialogExif.textContent = exifStr
+    dialogExif.style.display = 'block'
+  } else {
+    dialogExif.style.display = 'none'
+  }
+
   photoDialog.showModal()
 }
 

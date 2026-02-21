@@ -14,6 +14,20 @@ Bird webcamera detector with Rapsberry Pi4
 
 See [CAMERA_SETUP.md](CAMERA_SETUP.md) for detailed camera configuration and multi-camera setup.
 
+## Setup (One-time)
+
+```bash
+./setup.sh
+```
+
+See [setup.sh](setup.sh) for dependencies details.
+
+### Running the Bird Detector
+
+```bash
+./start.sh
+```
+
 ## Local Development on MacOs
 
 ```
