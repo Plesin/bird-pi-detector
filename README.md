@@ -1,6 +1,6 @@
-# bird-pi-detector
+# Bird Rapsberry Pi4 Detector
 
-Bird webcamera detector with Rapsberry Pi4
+Bird detector with Raspberry Pi4 - AI coded and supervised
 
 ## HW used
 

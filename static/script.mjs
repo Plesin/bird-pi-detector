@@ -5,6 +5,41 @@ const dialogImage = document.getElementById('photo-dialog-image')
 const dialogTitle = document.getElementById('photo-dialog-title')
 const dialogExif = document.getElementById('photo-dialog-exif')
 
+// ==================== Thumbnail Size ====================
+const THUMB_WIDTHS = { s: 320, m: 640, l: 1280 }
+
+function applyThumbSize(size, container = document) {
+  const width = THUMB_WIDTHS[size]
+  container.querySelectorAll('img[data-path]').forEach((img) => {
+    img.src = `/thumbs/${size}/${img.dataset.path}`
+  })
+  container
+    .querySelectorAll('.gallery .card, .gallery-placeholder .card')
+    .forEach((card) => {
+      card.style.width = `min(${width}px, 100%)`
+    })
+}
+
+const allSizeButtons = document.querySelectorAll(
+  '#thumb-size-picker [data-size], #video-thumb-size-picker [data-size]',
+)
+
+function setThumbSize(size) {
+  localStorage.setItem('thumbSize', size)
+  allSizeButtons.forEach((b) =>
+    b.classList.toggle('btn-active', b.dataset.size === size),
+  )
+  applyThumbSize(size)
+}
+
+allSizeButtons.forEach((btn) => {
+  btn.addEventListener('click', () => setThumbSize(btn.dataset.size))
+})
+
+// Apply saved size on load
+const savedSize = localStorage.getItem('thumbSize') || 'm'
+setThumbSize(savedSize)
+
 // ==================== Tab Management ====================
 // Handle DaisyUI tab switching with live feed loading
 const tabRadios = document.querySelectorAll('input[name="tab_gallery"]')
@@ -126,36 +161,49 @@ function attachGalleryListeners(container) {
 }
 
 // ==================== Collapse Event Listeners ====================
-// Handle collapse open/close to attach listeners as needed
+// Handle collapse open/close — lazy-load thumbnails on first expand
 document.querySelectorAll('.collapse').forEach((collapse) => {
   const checkbox = collapse.querySelector('input[type="checkbox"]')
   if (checkbox) {
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) {
-        // When opening, attach listeners
-        const gallery = collapse.querySelector('.gallery')
-        if (gallery) {
-          attachGalleryListeners(gallery)
+    checkbox.addEventListener('change', async () => {
+      if (!checkbox.checked) return
+
+      const placeholder = collapse.querySelector(
+        '.gallery-placeholder[data-loaded="false"]',
+      )
+      if (placeholder) {
+        const dayKey = placeholder.dataset.dayKey
+        const mediaType = placeholder.dataset.mediaType
+        try {
+          const res = await fetch(`/day/${dayKey}/thumbs?type=${mediaType}`)
+          if (res.ok) {
+            const currentSize = localStorage.getItem('thumbSize') || 'm'
+            placeholder.innerHTML = await res.text()
+            placeholder.dataset.loaded = 'true'
+            placeholder.className = 'gallery flex flex-wrap gap-4'
+            applyThumbSize(currentSize, placeholder)
+            attachGalleryListeners(placeholder)
+          }
+        } catch (_) {
+          // will retry on next expand
         }
+      } else {
+        const gallery = collapse.querySelector('.gallery')
+        if (gallery) attachGalleryListeners(gallery)
       }
     })
   }
 })
 
 // ==================== Initial Setup ====================
-// Attach listeners to initially visible galleries
+// Attach listeners to pre-loaded galleries (today's expanded section)
 document
-  .querySelectorAll(
-    '.collapse.collapse-open, .day-content[style*="display: block"]',
-  )
-  .forEach((section) => {
-    const gallery = section.querySelector('.gallery')
-    if (gallery) {
-      attachGalleryListeners(gallery)
-    }
+  .querySelectorAll('.collapse.collapse-open .gallery')
+  .forEach((gallery) => {
+    attachGalleryListeners(gallery)
   })
 
-// Also attach to any galleries that are not in collapsed sections
+// Also handle day-view pages where there's no collapse wrapper
 document
   .querySelectorAll('.day-content:not([style*="display: none"]) .gallery')
   .forEach((gallery) => {
