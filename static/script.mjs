@@ -126,36 +126,48 @@ function attachGalleryListeners(container) {
 }
 
 // ==================== Collapse Event Listeners ====================
-// Handle collapse open/close to attach listeners as needed
+// Handle collapse open/close — lazy-load thumbnails on first expand
 document.querySelectorAll('.collapse').forEach((collapse) => {
   const checkbox = collapse.querySelector('input[type="checkbox"]')
   if (checkbox) {
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) {
-        // When opening, attach listeners
-        const gallery = collapse.querySelector('.gallery')
-        if (gallery) {
-          attachGalleryListeners(gallery)
+    checkbox.addEventListener('change', async () => {
+      if (!checkbox.checked) return
+
+      const placeholder = collapse.querySelector(
+        '.gallery-placeholder[data-loaded="false"]',
+      )
+      if (placeholder) {
+        const dayKey = placeholder.dataset.dayKey
+        const mediaType = placeholder.dataset.mediaType
+        try {
+          const res = await fetch(`/day/${dayKey}/thumbs?type=${mediaType}`)
+          if (res.ok) {
+            placeholder.innerHTML = await res.text()
+            placeholder.dataset.loaded = 'true'
+            placeholder.className =
+              'gallery grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4'
+            attachGalleryListeners(placeholder)
+          }
+        } catch (_) {
+          // will retry on next expand
         }
+      } else {
+        const gallery = collapse.querySelector('.gallery')
+        if (gallery) attachGalleryListeners(gallery)
       }
     })
   }
 })
 
 // ==================== Initial Setup ====================
-// Attach listeners to initially visible galleries
+// Attach listeners to pre-loaded galleries (today's expanded section)
 document
-  .querySelectorAll(
-    '.collapse.collapse-open, .day-content[style*="display: block"]',
-  )
-  .forEach((section) => {
-    const gallery = section.querySelector('.gallery')
-    if (gallery) {
-      attachGalleryListeners(gallery)
-    }
+  .querySelectorAll('.collapse.collapse-open .gallery')
+  .forEach((gallery) => {
+    attachGalleryListeners(gallery)
   })
 
-// Also attach to any galleries that are not in collapsed sections
+// Also handle day-view pages where there's no collapse wrapper
 document
   .querySelectorAll('.day-content:not([style*="display: none"]) .gallery')
   .forEach((gallery) => {
