@@ -14,6 +14,20 @@ except ImportError:
     PICAMERA2_AVAILABLE = False
 
 
+class LensConfig:
+    """
+    Lens configuration for EXIF metadata.
+    Update these values if you change the lens.
+    Pi HQ Camera sensor (IMX477) crop factor is ~5.6x vs full-frame 35mm.
+    Lens: PT3611614M10MP — 16mm F1.4-F16 C-Mount 1" 10MP
+    """
+    MAKE = "Unknown"                      # Manufacturer not printed on lens
+    MODEL = "16mm F1.4-F16 C-Mount"       # PT3611614M10MP
+    FOCAL_LENGTH_MM = 16                  # Physical focal length
+    FOCAL_LENGTH_35MM = 89                # 35mm equivalent (16mm × 5.6 crop factor)
+    MAX_APERTURE = 1.4                    # Widest aperture (lens spec, not per-shot)
+
+
 class WhiteBalanceMode:
     """White Balance Mode options for Pi HQ Camera (libcamera)"""
     OFF = 0  # Manual, no white balance correction
@@ -108,6 +122,12 @@ class PiCamera2Wrapper:
                 "FocusLength": metadata.get("FocusLength"),
                 "FocusDistance": metadata.get("FocusDistance"),
                 "SensorTemperature": metadata.get("SensorTemperature"),
+                # Lens info (static, from LensConfig)
+                "LensMake": LensConfig.MAKE,
+                "LensModel": LensConfig.MODEL,
+                "FocalLength": LensConfig.FOCAL_LENGTH_MM,
+                "FocalLengthIn35mm": LensConfig.FOCAL_LENGTH_35MM,
+                "MaxAperture": LensConfig.MAX_APERTURE,
             }
             
             # Release the request

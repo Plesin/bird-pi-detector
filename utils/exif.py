@@ -56,6 +56,11 @@ def extract_exif_data(metadata):
         iso = calculate_iso_from_gain(metadata["AnalogueGain"])
         exif_data["ISO"] = iso
     
+    # Lens info (static values from LensConfig via camera metadata)
+    for key in ("LensMake", "LensModel", "FocalLength", "FocalLengthIn35mm", "MaxAperture"):
+        if metadata.get(key) is not None:
+            exif_data[key] = metadata[key]
+
     # White balance
     if metadata.get("ColourTemperature"):
         exif_data["ColourTemperature"] = metadata["ColourTemperature"]
@@ -93,7 +98,44 @@ def embed_exif_in_image(filepath, exif_data):
     try:
         # Create exif dict
         exif_dict = {"0th": {}, "Exif": {}, "GPS": {}}
+
+        # DateTimeOriginal from filename (bird_YYYYMMDD_HHMMSS_N.jpg)
+        try:
+            parts = os.path.basename(filepath).split("_")
+            if len(parts) >= 3 and len(parts[1]) == 8 and len(parts[2]) == 6:
+                dt_str = f"{parts[1][:4]}:{parts[1][4:6]}:{parts[1][6:8]} {parts[2][:2]}:{parts[2][2:4]}:{parts[2][4:6]}"
+                dt_bytes = dt_str.encode()
+                exif_dict["0th"][piexif.ImageIFD.DateTime] = dt_bytes
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeOriginal] = dt_bytes
+                exif_dict["Exif"][piexif.ExifIFD.DateTimeDigitized] = dt_bytes
+        except Exception:
+            pass
         
+        # Camera make/model
+        exif_dict["0th"][piexif.ImageIFD.Make] = b"Raspberry Pi Foundation"
+        exif_dict["0th"][piexif.ImageIFD.Model] = b"Raspberry Pi HQ Camera"
+
+        # Focal length as rational (mm)
+        if exif_data.get("FocalLength"):
+            fl = int(exif_data["FocalLength"] * 10)
+            exif_dict["Exif"][piexif.ExifIFD.FocalLength] = (fl, 10)
+
+        # 35mm equivalent focal length (integer)
+        if exif_data.get("FocalLengthIn35mm"):
+            exif_dict["Exif"][piexif.ExifIFD.FocalLengthIn35mmFilm] = int(exif_data["FocalLengthIn35mm"])
+
+        # Lens make/model
+        if exif_data.get("LensModel"):
+            exif_dict["Exif"][piexif.ExifIFD.LensModel] = exif_data["LensModel"].encode()
+        if exif_data.get("LensMake"):
+            exif_dict["Exif"][piexif.ExifIFD.LensMake] = exif_data["LensMake"].encode()
+
+        # Max aperture is a fixed lens spec (widest the lens can open)
+        # MaxApertureValue tag uses APEX units: Av = log2(FNumber²)
+        if exif_data.get("MaxAperture"):
+            apex_av = math.log2(exif_data["MaxAperture"] ** 2)
+            exif_dict["Exif"][piexif.ExifIFD.MaxApertureValue] = (int(round(apex_av * 100)), 100)
+
         # Add ISO (tag 0x8827) - belongs in Exif IFD
         if "ISO" in exif_data:
             exif_dict["Exif"][piexif.ExifIFD.ISOSpeedRatings] = exif_data["ISO"]
@@ -157,6 +199,8 @@ def embed_exif_in_image(filepath, exif_data):
 
         # Store extra data in ImageDescription
         comment_parts = []
+        if exif_data.get("LensModel"):
+            comment_parts.append(f"Lens={exif_data['LensModel']}")
         if exif_data.get("ColourTemperature"):
             comment_parts.append(f"CT={exif_data['ColourTemperature']}K")
         if exif_data.get("ColourGains"):
