@@ -6,10 +6,37 @@ Used by both page routes and API routes.
 import os
 from datetime import datetime
 
+import cv2
+
 from utils.exif import load_exif_data
 
 OUTPUT_DIR = "media"
 TEMPLATE_NAME = "index.html"
+
+# Thumbnail config
+THUMB_SIZES = {'s': 320, 'm': 640, 'l': 1280}
+THUMB_CACHE_DIR = os.path.join(OUTPUT_DIR, '.thumbcache')
+
+
+def generate_thumb(rel_path, size_key):
+    """Return path to a cached thumbnail, generating it if not yet on disk."""
+    width = THUMB_SIZES.get(size_key)
+    if width is None:
+        return None
+
+    cache_path = os.path.join(THUMB_CACHE_DIR, size_key, rel_path)
+    if not os.path.exists(cache_path):
+        src_path = os.path.join(OUTPUT_DIR, rel_path)
+        img = cv2.imread(src_path)
+        if img is None:
+            return None
+        h, w = img.shape[:2]
+        new_h = int(h * width / w)
+        resized = cv2.resize(img, (width, new_h), interpolation=cv2.INTER_AREA)
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        cv2.imwrite(cache_path, resized, [cv2.IMWRITE_JPEG_QUALITY, 85])
+
+    return cache_path
 
 
 def extract_day_from_name(filename):

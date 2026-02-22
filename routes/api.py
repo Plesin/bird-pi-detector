@@ -4,11 +4,23 @@ API routes — data endpoints consumed by the frontend JS.
 
 import os
 
-from flask import Blueprint, redirect, render_template, request, url_for
+from flask import Blueprint, redirect, render_template, request, send_from_directory, url_for
 
-from utils.media import OUTPUT_DIR, collect_media_by_day
+from utils.media import OUTPUT_DIR, THUMB_CACHE_DIR, THUMB_SIZES, collect_media_by_day, generate_thumb
 
 api = Blueprint('api', __name__)
+
+
+@api.route('/thumbs/<size>/<path:filename>')
+def serve_thumb(size, filename):
+    """Serve a cached thumbnail, generating it on first request."""
+    if size not in THUMB_SIZES:
+        return '', 400
+    cache_path = generate_thumb(filename, size)
+    if cache_path is None:
+        return '', 404
+    cache_dir = os.path.abspath(os.path.join(THUMB_CACHE_DIR, size))
+    return send_from_directory(cache_dir, filename)
 
 
 @api.route('/day/<day_key>/thumbs')

@@ -22,7 +22,8 @@
       %}
     >
       <img
-        src="{{ url_for('pages.serve_file', filename=photo.path) }}"
+        src="/thumbs/m/{{ photo.path }}"
+        data-path="{{ photo.path }}"
         alt="{{ photo.path }}"
         loading="lazy"
         class="group-hover:scale-105 transition-transform"
@@ -108,9 +109,9 @@
 </div>
 {% endfor %} {% elif media_type == 'videos' %} {% for video in day.videos %}
 <div
-  class="card bg-base-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden group"
+  class="card w-full bg-base-200 shadow-md hover:shadow-lg transition-shadow overflow-hidden group"
 >
-  <figure class="bg-base-300 aspect-video">
+  <figure class="w-full bg-base-300 aspect-video">
     <video controls class="w-full h-full object-cover">
       <source src="{{ url_for('pages.serve_file', filename=video.path) }}" />
       Your browser doesn't support video playback.
