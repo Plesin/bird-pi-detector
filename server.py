@@ -17,6 +17,7 @@ except ImportError:
     pass  # python-dotenv not installed, use system environment variables
 
 from camera_config import CameraConfig, get_camera_from_env
+from utils.exif import load_exif_data
 
 # Configuration
 OUTPUT_DIR = "media"
@@ -136,6 +137,11 @@ def collect_media_by_day():
             media_item = {"path": rel_path, "time_label": time_label}
 
             if filename.endswith('.jpg'):
+                # Load EXIF data from image
+                exif_data = load_exif_data(os.path.join(OUTPUT_DIR, rel_path))
+                media_item["exif"] = exif_data
+                media_item["iso"] = exif_data.get("ISO")
+                media_item["shutter_speed"] = exif_data.get("ShutterSpeed")
                 day_entry["photos"].append(media_item)
             elif filename.endswith(('.mp4', '.avi')):
                 day_entry["videos"].append(media_item)

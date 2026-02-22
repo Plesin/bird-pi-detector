@@ -14,6 +14,20 @@ except ImportError:
     PICAMERA2_AVAILABLE = False
 
 
+class LensConfig:
+    """
+    Lens configuration for EXIF metadata.
+    Update these values if you change the lens.
+    Pi HQ Camera sensor (IMX477) crop factor is ~5.6x vs full-frame 35mm.
+    Lens: PT3611614M10MP — 16mm F1.4-F16 C-Mount 1" 10MP
+    """
+    MAKE = "Unknown"                      # Manufacturer not printed on lens
+    MODEL = "16mm F1.4-F16 C-Mount"       # PT3611614M10MP
+    FOCAL_LENGTH_MM = 16                  # Physical focal length
+    FOCAL_LENGTH_35MM = 89                # 35mm equivalent (16mm × 5.6 crop factor)
+    MAX_APERTURE = 1.4                    # Widest aperture (lens spec, not per-shot)
+
+
 class WhiteBalanceMode:
     """White Balance Mode options for Pi HQ Camera (libcamera)"""
     OFF = 0  # Manual, no white balance correction
@@ -51,6 +65,7 @@ class PiCamera2Wrapper:
         self.width = width
         self.height = height
         self.fps = fps
+        self.last_metadata = None  # Store last captured metadata
         
         # Get white balance mode from environment or use default (Cloudy)
         awb_mode_env = os.getenv('CAMERA_AWB_MODE')
@@ -88,12 +103,45 @@ class PiCamera2Wrapper:
     def read(self):
         """Read a frame (OpenCV-compatible interface)"""
         try:
-            frame = self.picam2.capture_array()
+            # Capture with metadata
+            request = self.picam2.capture_request()
+            frame = request.make_array("main")
+            
+            # Get metadata dict (picamera2 API)
+            metadata = request.get_metadata()
+            
+            # Store metadata for later retrieval
+            self.last_metadata = {
+                "ExposureTime": metadata.get("ExposureTime"),  # in microseconds
+                "AnalogueGain": metadata.get("AnalogueGain"),
+                "DigitalGain": metadata.get("DigitalGain"),
+                "Lux": metadata.get("Lux"),
+                "ColourTemperature": metadata.get("ColourTemperature"),
+                "ColourGains": metadata.get("ColourGains"),  # (r_gain, b_gain) white balance
+                "AwbMode": self.awb_mode,  # camera white balance setting
+                "FocusLength": metadata.get("FocusLength"),
+                "FocusDistance": metadata.get("FocusDistance"),
+                "SensorTemperature": metadata.get("SensorTemperature"),
+                # Lens info (static, from LensConfig)
+                "LensMake": LensConfig.MAKE,
+                "LensModel": LensConfig.MODEL,
+                "FocalLength": LensConfig.FOCAL_LENGTH_MM,
+                "FocalLengthIn35mm": LensConfig.FOCAL_LENGTH_35MM,
+                "MaxAperture": LensConfig.MAX_APERTURE,
+            }
+            
+            # Release the request
+            request.release()
+            
             # Return RGB frame as-is
             return True, frame
         except Exception as e:
             print(f"Error reading frame: {e}")
             return False, None
+    
+    def get_metadata(self):
+        """Get the last captured metadata"""
+        return self.last_metadata
     
     def release(self):
         """Release camera resources"""
