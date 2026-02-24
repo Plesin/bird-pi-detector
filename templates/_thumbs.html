@@ -5,10 +5,9 @@
   <figure
     class="overflow-hidden cursor-pointer aspect-video bg-base-300 p-0 m-0"
   >
-    <button
-      class="thumb-btn photo-thumb w-full h-full"
-      type="button"
-      data-full="{{ url_for('pages.serve_file', filename=photo.path) }}"
+    <a
+      class="photo-thumb w-full h-full block"
+      href="{{ url_for('pages.serve_file', filename=photo.path) }}"
       data-title="{{ photo.path }}"
       {%
       if
@@ -28,7 +27,7 @@
         loading="lazy"
         class="group-hover:scale-105 transition-transform"
       />
-    </button>
+    </a>
     <div
       class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none"
     ></div>
