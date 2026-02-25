@@ -1,9 +1,6 @@
 // Bird Viewer - Tab and Gallery Management Module
 
-const photoDialog = document.getElementById('photo-dialog')
-const dialogImage = document.getElementById('photo-dialog-image')
-const dialogTitle = document.getElementById('photo-dialog-title')
-const dialogExif = document.getElementById('photo-dialog-exif')
+import PhotoSwipeLightbox from '/static/libs/photoswipe-lightbox.esm.min.js'
 
 // ==================== Thumbnail Size ====================
 const THUMB_WIDTHS = { s: 320, m: 640, l: 1280 }
@@ -87,29 +84,52 @@ if (initialRadio) {
   initialRadio.dispatchEvent(new Event('change', { bubbles: true }))
 }
 
-// ==================== Photo Dialog ====================
-function handlePhotoClick() {
-  dialogImage.src = this.dataset.full
-  dialogTitle.textContent = this.dataset.title || ''
+// ==================== PhotoSwipe Gallery ====================
+function initPhotoSwipe(gallery) {
+  if (gallery._pswpInitialized) return
+  gallery._pswpInitialized = true
 
-  // Display EXIF data if available
-  const exifStr = this.dataset.exif || ''
-  if (exifStr) {
-    dialogExif.textContent = exifStr
-    dialogExif.style.display = 'block'
-  } else {
-    dialogExif.style.display = 'none'
-  }
+  const lightbox = new PhotoSwipeLightbox({
+    gallery,
+    children: 'a.photo-thumb',
+    pswpModule: () => import('/static/libs/photoswipe.esm.min.js'),
+  })
 
-  photoDialog.showModal()
+  // Read the already-loaded thumbnail's natural size to derive the correct
+  // aspect ratio before PhotoSwipe renders anything — no layout shift.
+  lightbox.addFilter('itemData', (itemData) => {
+    const thumb = itemData.element?.querySelector('img')
+    if (thumb?.naturalWidth) {
+      // Scale up to a high-res base so PhotoSwipe has room to zoom
+      const scale = 1920 / thumb.naturalWidth
+      itemData.width = 1920
+      itemData.height = Math.round(thumb.naturalHeight * scale)
+    }
+    return itemData
+  })
+
+  lightbox.on('uiRegister', () => {
+    lightbox.pswp.ui.registerElement({
+      name: 'caption',
+      order: 9,
+      isButton: false,
+      appendTo: 'wrapper',
+      onInit: (el, pswp) => {
+        pswp.on('change', () => {
+          const anchor = pswp.currSlide?.data?.element
+          const title = anchor?.dataset?.title || ''
+          const exif = anchor?.dataset?.exif || ''
+          const parts = [title, exif].filter(Boolean)
+          el.innerHTML = parts.length
+            ? `<div class="pswp__caption">${parts.join(' • ')}</div>`
+            : ''
+        })
+      },
+    })
+  })
+
+  lightbox.init()
 }
-
-photoDialog.addEventListener('click', (event) => {
-  // Close when clicking outside the modal box
-  if (event.target === photoDialog) {
-    photoDialog.close()
-  }
-})
 
 // ==================== Delete Handling ====================
 async function handleDelete(event) {
@@ -151,13 +171,10 @@ function attachGalleryListeners(container) {
     }
   })
 
-  // Attach photo dialog handlers
-  container.querySelectorAll('.photo-thumb').forEach((button) => {
-    if (!button.dataset.listenerAttached) {
-      button.addEventListener('click', handlePhotoClick)
-      button.dataset.listenerAttached = 'true'
-    }
-  })
+  // Initialize PhotoSwipe for photo galleries
+  if (container.querySelector('a.photo-thumb')) {
+    initPhotoSwipe(container)
+  }
 }
 
 // ==================== Collapse Event Listeners ====================

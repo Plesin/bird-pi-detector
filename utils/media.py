@@ -94,7 +94,9 @@ def get_time_range_for_day(photos):
 def collect_media_by_day():
     """Collect media files grouped by day from subfolders or filenames"""
     days = {}
-    for root, _, files in os.walk(OUTPUT_DIR):
+    for root, dirs, files in os.walk(OUTPUT_DIR):
+        # skip the thumbnail cache directory
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
         for filename in files:
             if not filename.endswith(('.jpg', '.mp4', '.avi', '.wav')):
                 continue
