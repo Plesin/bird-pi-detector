@@ -226,3 +226,49 @@ document
   .forEach((gallery) => {
     attachGalleryListeners(gallery)
   })
+
+// ==================== SSE Auto-Refresh ====================
+// Listen for new media events from the server and reload the page automatically.
+// If the live stream tab is active, show a banner instead to avoid interrupting it.
+function initSSE() {
+  if (!window.EventSource) return
+
+  const source = new EventSource('/events')
+
+  source.addEventListener('new-media', () => {
+    const toast = document.getElementById('sse-toast')
+    const toastText = document.getElementById('sse-toast-text')
+    const toastInner = document.getElementById('sse-toast-inner')
+    if (!toast || toast.dataset.active) return
+    toast.dataset.active = 'true'
+    toast.classList.remove('hidden')
+
+    const liveRadio = document.querySelector(
+      'input[name="tab_gallery"][data-tab="live"]',
+    )
+    const onLiveTab = liveRadio?.checked
+
+    if (onLiveTab) {
+      toastText.textContent = 'New photos detected — click to refresh'
+      toastInner.classList.add('cursor-pointer')
+      toastInner.addEventListener('click', () => location.reload())
+    } else {
+      let seconds = 5
+      toastText.textContent = `New photos detected, reloading in ${seconds}s`
+      const interval = setInterval(() => {
+        seconds -= 1
+        toastText.textContent = `New photos detected, reloading in ${seconds}s`
+        if (seconds <= 0) {
+          clearInterval(interval)
+          location.reload()
+        }
+      }, 1000)
+    }
+  })
+
+  source.onerror = () => {
+    // Browser will automatically reconnect; nothing to do here
+  }
+}
+
+initSSE()

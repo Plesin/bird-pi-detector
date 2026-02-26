@@ -49,7 +49,7 @@ sync_and_restart() {
   
   echo "🔄 Restarting server.py on Pi..."
   ssh "$PI_HOST" "pkill -f server.py || true; sleep 1" || true
-  ssh -f "$PI_HOST" "cd '$PI_PATH' && python3 server.py > /tmp/server.log 2>&1" || true
+  ssh -f "$PI_HOST" "cd '$PI_PATH' && $PI_PATH/venv/bin/python3 server.py > /tmp/server.log 2>&1" || true
   sleep 2
   
   echo "✅ Synced and restarted at $(date +'%Y-%m-%d %H:%M:%S')"

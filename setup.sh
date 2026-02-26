@@ -11,6 +11,7 @@
 #    - piexif: EXIF data support for embedding photo metadata into images
 #    - numpy: Numerical computing library (required by OpenCV)
 #    - pyaudio: Audio recording support for video capture
+#    - watchdog: OS-level filesystem event monitoring for instant SSE push
 #
 # Note: opencv is installed via apt because Python 3.13 has no pre-built
 # pip wheels yet, and compiling from source takes 30-40 minutes on Pi4
@@ -43,7 +44,7 @@ source venv/bin/activate
 
 # Install remaining dependencies via pip
 echo "⬇️  Installing dependencies..."
-pip install piexif numpy pyaudio
+pip install piexif numpy pyaudio watchdog
 
 if [ $? -ne 0 ]; then
     echo "❌ Failed to install dependencies"
