@@ -2,6 +2,9 @@
 
 import PhotoSwipeLightbox from '/static/libs/photoswipe-lightbox.esm.min.js'
 
+const qs = document.querySelector.bind(document)
+const qsa = document.querySelectorAll.bind(document)
+
 // ==================== Thumbnail Size ====================
 const THUMB_WIDTHS = { s: 320, m: 640, l: 1280 }
 
@@ -17,7 +20,7 @@ function applyThumbSize(size, container = document) {
     })
 }
 
-const allSizeButtons = document.querySelectorAll(
+const allSizeButtons = qsa(
   '#thumb-size-picker [data-size], #video-thumb-size-picker [data-size]',
 )
 
@@ -39,12 +42,12 @@ setThumbSize(savedSize)
 
 // ==================== Tab Management ====================
 // Handle DaisyUI tab switching with live feed loading
-const tabRadios = document.querySelectorAll('input[name="tab_gallery"]')
+const tabRadios = qsa('input[name="tab_gallery"]')
 const defaultTab = 'photos'
 
 const handleTabChange = (tabId) => {
-  const liveImage = document.querySelector('.live-feed')
-  const liveSpinner = document.querySelector('.live-spinner')
+  const liveImage = qs('.live-feed')
+  const liveSpinner = qs('.live-spinner')
 
   if (tabId === 'live') {
     if (liveImage) {
@@ -75,9 +78,7 @@ tabRadios.forEach((radio) => {
 
 // Handle initial tab from URL hash
 const initialTab = window.location.hash.replace('#', '') || defaultTab
-const initialRadio = document.querySelector(
-  `input[name="tab_gallery"][data-tab="${initialTab}"]`,
-)
+const initialRadio = qs(`input[name="tab_gallery"][data-tab="${initialTab}"]`)
 if (initialRadio) {
   initialRadio.checked = true
   // Trigger change event to load live feed if needed
@@ -133,8 +134,8 @@ function initPhotoSwipe(gallery) {
 
 // ==================== Delete Handling ====================
 function showErrorToast(message) {
-  const toast = document.getElementById('error-toast')
-  const text = document.getElementById('error-toast-text')
+  const toast = qs('#error-toast')
+  const text = qs('#error-toast-text')
   if (!toast || !text) return
   text.textContent = message
   toast.classList.remove('hidden')
@@ -143,8 +144,8 @@ function showErrorToast(message) {
 
 function showDeleteModal() {
   return new Promise((resolve) => {
-    const modal = document.getElementById('delete-confirm-modal')
-    const confirmBtn = document.getElementById('delete-confirm-btn')
+    const modal = qs('#delete-confirm-modal')
+    const confirmBtn = qs('#delete-confirm-btn')
     let confirmed = false
 
     const onConfirm = () => {
@@ -161,6 +162,7 @@ function showDeleteModal() {
     confirmBtn.addEventListener('click', onConfirm)
     modal.addEventListener('close', onClose)
     modal.showModal()
+    confirmBtn.focus()
   })
 }
 
@@ -185,7 +187,20 @@ async function handleDelete(event) {
 
     const card = this.closest('.card')
     if (card) {
+      const daySection = card.closest('.day-section')
       card.remove()
+      if (daySection) {
+        const countEl = daySection.querySelector('[data-count]')
+        const labelEl = daySection.querySelector('[data-count-label]')
+        if (countEl) {
+          const newCount = parseInt(countEl.textContent, 10) - 1
+          countEl.textContent = newCount
+          if (labelEl) {
+            const base = labelEl.textContent.trim().replace(/s$/, '')
+            labelEl.textContent = newCount === 1 ? base : base + 's'
+          }
+        }
+      }
     }
   } catch (error) {
     showErrorToast('Delete failed. Please try again.')
@@ -210,7 +225,7 @@ function attachGalleryListeners(container) {
 
 // ==================== Collapse Event Listeners ====================
 // Handle collapse open/close — lazy-load thumbnails on first expand
-document.querySelectorAll('.collapse').forEach((collapse) => {
+qsa('.collapse').forEach((collapse) => {
   const checkbox = collapse.querySelector('input[type="checkbox"]')
   if (checkbox) {
     checkbox.addEventListener('change', async () => {
@@ -245,18 +260,16 @@ document.querySelectorAll('.collapse').forEach((collapse) => {
 
 // ==================== Initial Setup ====================
 // Attach listeners to pre-loaded galleries (today's expanded section)
-document
-  .querySelectorAll('.collapse.collapse-open .gallery')
-  .forEach((gallery) => {
-    attachGalleryListeners(gallery)
-  })
+qsa('.collapse.collapse-open .gallery').forEach((gallery) => {
+  attachGalleryListeners(gallery)
+})
 
 // Also handle day-view pages where there's no collapse wrapper
-document
-  .querySelectorAll('.day-content:not([style*="display: none"]) .gallery')
-  .forEach((gallery) => {
+qsa('.day-content:not([style*="display: none"]) .gallery').forEach(
+  (gallery) => {
     attachGalleryListeners(gallery)
-  })
+  },
+)
 
 // ==================== SSE Auto-Refresh ====================
 // Listen for new media events from the server and reload the page automatically.
@@ -267,16 +280,14 @@ function initSSE() {
   const source = new EventSource('/events')
 
   source.addEventListener('new-media', () => {
-    const toast = document.getElementById('sse-toast')
-    const toastText = document.getElementById('sse-toast-text')
-    const toastInner = document.getElementById('sse-toast-inner')
+    const toast = qs('#sse-toast')
+    const toastText = qs('#sse-toast-text')
+    const toastInner = qs('#sse-toast-inner')
     if (!toast || toast.dataset.active) return
     toast.dataset.active = 'true'
     toast.classList.remove('hidden')
 
-    const liveRadio = document.querySelector(
-      'input[name="tab_gallery"][data-tab="live"]',
-    )
+    const liveRadio = qs('input[name="tab_gallery"][data-tab="live"]')
     const onLiveTab = liveRadio?.checked
 
     if (onLiveTab) {

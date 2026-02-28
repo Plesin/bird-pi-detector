@@ -20,11 +20,13 @@
         <div>
           <div class="font-semibold text-base-content">
             {{ day.summary }} -
-            <span class="text-primary"
+            <span class="text-primary" data-count
               >{{ day[media_type[:-1] + '_count'] }}</span
             >
-            {{ media_type[:-1] }}{{ "s" if day[media_type[:-1] + '_count'] != 1
-            else "" }}
+            <span data-count-label
+              >{{ media_type[:-1] }}{{ "s" if day[media_type[:-1] + '_count'] !=
+              1 else "" }}</span
+            >
           </div>
           {% if day.first_time and day.last_time %}
           <div class="text-sm text-base-content/60 mt-1">
