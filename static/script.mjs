@@ -132,12 +132,43 @@ function initPhotoSwipe(gallery) {
 }
 
 // ==================== Delete Handling ====================
+function showErrorToast(message) {
+  const toast = document.getElementById('error-toast')
+  const text = document.getElementById('error-toast-text')
+  if (!toast || !text) return
+  text.textContent = message
+  toast.classList.remove('hidden')
+  setTimeout(() => toast.classList.add('hidden'), 4000)
+}
+
+function showDeleteModal() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('delete-confirm-modal')
+    const confirmBtn = document.getElementById('delete-confirm-btn')
+    let confirmed = false
+
+    const onConfirm = () => {
+      confirmed = true
+      modal.close()
+    }
+
+    const onClose = () => {
+      confirmBtn.removeEventListener('click', onConfirm)
+      modal.removeEventListener('close', onClose)
+      resolve(confirmed)
+    }
+
+    confirmBtn.addEventListener('click', onConfirm)
+    modal.addEventListener('close', onClose)
+    modal.showModal()
+  })
+}
+
 async function handleDelete(event) {
   event.preventDefault()
 
-  if (!confirm('Delete this file?')) {
-    return
-  }
+  const confirmed = await showDeleteModal()
+  if (!confirmed) return
 
   try {
     const response = await fetch(this.action, {
@@ -148,7 +179,7 @@ async function handleDelete(event) {
     })
 
     if (!response.ok) {
-      alert('Delete failed. Please try again.')
+      showErrorToast('Delete failed. Please try again.')
       return
     }
 
@@ -157,7 +188,7 @@ async function handleDelete(event) {
       card.remove()
     }
   } catch (error) {
-    alert('Delete failed. Please try again.')
+    showErrorToast('Delete failed. Please try again.')
   }
 }
 

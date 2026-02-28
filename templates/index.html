@@ -40,7 +40,8 @@
       </div>
     </div>
 
-    {% include '_toast.html' %}
+    {% include '_toast.html' %} {% include '_delete_modal.html' %}
+
     <script
       type="module"
       src="{{ url_for('static', filename='script.mjs') }}"
